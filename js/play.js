@@ -69,6 +69,12 @@ function initGame() {
   startTimer();
 }
 
+// ── Helpers ──────────────────────────────────────────────────
+/** Returns a random rotation between -2 and +2 degrees (2 decimal places). */
+function randomRotation() {
+  return (Math.random() * 4 - 2).toFixed(2) + 'deg';
+}
+
 // ── Dealing ─────────────────────────────────────────────────
 /**
  * Deal n cards from the deck onto the board.
@@ -81,6 +87,7 @@ function dealCards(n, startDelayMs = 0) {
     const card = deck.pop();
     board.push(card);
     const el = createCardEl(card);
+    el.style.setProperty('--card-rotate', randomRotation());
     el.addEventListener('pointerdown', onCardPointerDown);
     el.addEventListener('keydown', onCardKeyDown);
     dealInCard(el, startDelayMs + i * 80);
@@ -99,6 +106,7 @@ function replaceCard(boardIndex, delayMs = 0) {
   const card = deck.pop();
   board[boardIndex] = card;
   const el = createCardEl(card);
+  el.style.setProperty('--card-rotate', randomRotation());
   el.addEventListener('pointerdown', onCardPointerDown);
   el.addEventListener('keydown', onCardKeyDown);
   dealInCard(el, delayMs);
@@ -262,6 +270,7 @@ function flyCardsToScore(els, onComplete) {
     const cardCY   = cardRect.top  + cardRect.height / 2;
 
     const clone = el.cloneNode(true);
+    const rotation = el.style.getPropertyValue('--card-rotate');
 
     // Hide original now (after cloning) — keeps grid space intact
     el.classList.add('flying');
@@ -277,6 +286,7 @@ function flyCardsToScore(els, onComplete) {
       transition: transform ${FLY_DURATION}ms ease-in ${i * FLY_STAGGER}ms,
                   opacity   ${FLY_DURATION}ms ease-in ${i * FLY_STAGGER}ms;
     `;
+    if (rotation) clone.style.setProperty('--card-rotate', rotation);
     document.body.appendChild(clone);
 
     // Double-RAF: first lets the browser register the element at its start
