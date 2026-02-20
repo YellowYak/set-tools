@@ -349,6 +349,10 @@ a {
   margin-top: 2px;
 }
 
+.timer-display {
+  font-variant-numeric: tabular-nums;
+}
+
 /* ============================================================
    Deck / Status Info
    ============================================================ */
@@ -426,6 +430,8 @@ a {
   border-radius: 16px;
   padding: 36px 40px;
   max-width: 400px;
+  max-height: 90vh;
+  overflow-y: auto;
   width: 100%;
   text-align: center;
   box-shadow: 0 20px 60px rgba(0,0,0,0.6);
@@ -458,6 +464,33 @@ a {
 .modal .winner-label {
   color: #f5e6c8;
   font-weight: 700;
+}
+
+.set-times-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #88bb80;
+  margin: 14px 0 6px;
+}
+
+.set-times-breakdown {
+  max-height: 160px;
+  overflow-y: auto;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding: 4px 0;
+  margin-bottom: 4px;
+}
+
+.set-time-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 2px;
+  font-size: 0.85rem;
+  color: #d8efd4;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ============================================================

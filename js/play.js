@@ -27,6 +27,7 @@ const btnShowSets    = document.getElementById('btn-show-sets');
 const setsOverlay    = document.getElementById('sets-overlay');
 const setsOverlayList = document.getElementById('sets-overlay-list');
 const btnCloseSets   = document.getElementById('btn-close-sets');
+const timerDisplayEl = document.getElementById('timer-display');
 
 // ── Game State ──────────────────────────────────────────────
 let deck     = [];
@@ -40,6 +41,13 @@ let busy     = false;
 // hintSetIndices: the three board indices of the chosen hint set
 let hintStep       = 0;
 let hintSetIndices = null;
+
+// Timer state
+let timerStart    = 0;    // Date.now() when current game began
+let timerInterval = null; // setInterval handle, null when stopped
+let finalTimeStr  = '0:00'; // frozen display value after game ends
+let lastSetTime   = 0;    // Date.now() at game start or last Set completion
+let setTimes      = [];   // ms elapsed for each successfully found Set
 
 // ── Initialisation ──────────────────────────────────────────
 function initGame() {
@@ -58,6 +66,7 @@ function initGame() {
   dealCards(12, 0);
   ensureSetOnBoard(null, false);
   updateStatus();
+  startTimer();
 }
 
 // ── Dealing ─────────────────────────────────────────────────
@@ -189,6 +198,9 @@ function validateSelection() {
 
 // ── Success ─────────────────────────────────────────────────
 function handleSuccess(els, indices) {
+  const now = Date.now();
+  setTimes.push(now - lastSetTime);
+  lastSetTime = now;
   busy = true;
   resetHint();
   showToast('That\'s a Set!', 2200);
@@ -406,12 +418,48 @@ function checkGameOver() {
 }
 
 function showGameOver() {
+  stopTimer();
   modalScores.innerHTML = '';
 
-  const row = document.createElement('div');
-  row.className = 'final-score-row';
-  row.innerHTML = `<span class="winner-label">Player 1</span><span>${scores[0]} ${pluralize(scores[0], 'Set')}</span>`;
-  modalScores.appendChild(row);
+  const scoreRow = document.createElement('div');
+  scoreRow.className = 'final-score-row';
+  scoreRow.innerHTML = `<span class="winner-label">Player 1</span><span>${scores[0]} ${pluralize(scores[0], 'Set')}</span>`;
+  modalScores.appendChild(scoreRow);
+
+  const timeRow = document.createElement('div');
+  timeRow.className = 'final-score-row';
+  timeRow.innerHTML = `<span class="winner-label">Time</span><span>${finalTimeStr}</span>`;
+  modalScores.appendChild(timeRow);
+
+  if (setTimes.length > 0) {
+    const avgMs     = setTimes.reduce((a, b) => a + b, 0) / setTimes.length;
+    const fastestMs = Math.min(...setTimes);
+
+    const label = document.createElement('p');
+    label.className = 'set-times-label';
+    label.textContent = 'Set Times';
+    modalScores.appendChild(label);
+
+    const list = document.createElement('div');
+    list.className = 'set-times-breakdown';
+    setTimes.forEach((ms, i) => {
+      const row = document.createElement('div');
+      row.className = 'set-time-row';
+      row.innerHTML = `<span>Set ${i + 1}</span><span>${formatTime(ms)}</span>`;
+      list.appendChild(row);
+    });
+    modalScores.appendChild(list);
+
+    const avgRow = document.createElement('div');
+    avgRow.className = 'final-score-row';
+    avgRow.innerHTML = `<span class="winner-label">Avg / Set</span><span>${formatTime(avgMs)}</span>`;
+    modalScores.appendChild(avgRow);
+
+    const fastRow = document.createElement('div');
+    fastRow.className = 'final-score-row';
+    fastRow.innerHTML = `<span class="winner-label">Fastest</span><span>${formatTime(fastestMs)}</span>`;
+    modalScores.appendChild(fastRow);
+  }
 
   modalOverlay.classList.remove('hidden');
 }
@@ -426,6 +474,32 @@ function updateStatus() {
   const onBoard   = board.length;
   const setCount  = findAllSets(board).length;
   statusEl.textContent = `${remaining} ${pluralize(remaining, 'card')} left · ${onBoard} on board · ${setCount} ${pluralize(setCount, 'set')} present`;
+}
+
+// ── Timer ─────────────────────────────────────────────────────
+function formatTime(ms) {
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+  timerStart = Date.now();
+  lastSetTime = timerStart;
+  setTimes = [];
+  timerDisplayEl.textContent = '0:00';
+  timerInterval = setInterval(() => {
+    timerDisplayEl.textContent = formatTime(Date.now() - timerStart);
+  }, 1000);
+}
+
+function stopTimer() {
+  finalTimeStr = formatTime(Date.now() - timerStart);
+  timerDisplayEl.textContent = finalTimeStr;
+  clearInterval(timerInterval);
+  timerInterval = null;
 }
 
 // ── All Sets Overlay ──────────────────────────────────────────

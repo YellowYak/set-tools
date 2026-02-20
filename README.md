@@ -50,8 +50,9 @@ A **Set** is any three cards where, for each of the four features, the values ac
   - Further clicks: reminder that all three are shown
   - Hint resets automatically when a Set is completed
 - **All Sets** button opens an overlay listing every valid Set on the current board as mini-card triplets (click outside or press Escape to close)
+- **Timer** counts up from 0:00 when the game starts and freezes when the game ends
 - Status bar shows cards remaining in deck, cards on board, and Sets currently present
-- Game-over summary modal when the deck is exhausted
+- Game-over modal shows total time, time per Set (scrollable list), average time per Set, and fastest Set
 
 ### Solve page
 - Browse all 81 cards in a scrollable picker; click any card to add/remove it from the board
