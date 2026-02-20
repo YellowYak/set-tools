@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- White card -->
+  <rect x="1" y="0" width="30" height="32" rx="5" fill="#ffffff" stroke="#dddddd" stroke-width="1"/>
+  <!-- Red oval -->
+  <rect x="5" y="4.5" width="22" height="7" rx="3.5" fill="#C93030"/>
+  <!-- Green oval -->
+  <rect x="5" y="12.5" width="22" height="7" rx="3.5" fill="#2A7A2A"/>
+  <!-- Purple oval -->
+  <rect x="5" y="20.5" width="22" height="7" rx="3.5" fill="#7040A0"/>
+</svg>
