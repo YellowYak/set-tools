@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Set — Play</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ── Hidden SVG Defs ── -->
+<svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true">
+<defs>
+  <pattern id="hatch-red" x="0" y="0" width="12" height="1.5" patternUnits="userSpaceOnUse">
+    <line x1="0" y1="0.75" x2="12" y2="0.75" stroke="#C93030" stroke-width="0.5"/>
+  </pattern>
+  <pattern id="hatch-green" x="0" y="0" width="12" height="1.5" patternUnits="userSpaceOnUse">
+    <line x1="0" y1="0.75" x2="12" y2="0.75" stroke="#2A7A2A" stroke-width="0.5"/>
+  </pattern>
+  <pattern id="hatch-purple" x="0" y="0" width="12" height="1.5" patternUnits="userSpaceOnUse">
+    <line x1="0" y1="0.75" x2="12" y2="0.75" stroke="#7040A0" stroke-width="0.5"/>
+  </pattern>
+  <path id="oval" d="M 3,1 L 9,1 A 3,3 0 0 1 9,7 L 3,7 A 3,3 0 0 1 3,1 Z"/>
+  <path id="diamond" d="M 6,0.5 L 11,4 L 6,7.5 L 1,4 Z"/>
+  <path id="squiggle" d="M2,6.3C1.4,6.3,0.9,6,0.5,5.5C0,4.7,0.2,3.6,1,3c1.9-1.3,4-1.7,6-0.6c0.7,0.4,1.3,0.2,1.9-0.3c0.7-0.6,1.8-0.5,2.5,0.2
+    c0.6,0.7,0.5,1.8-0.2,2.5C9.4,6.3,7.3,6.6,5.3,5.5C4.5,5.1,3.7,5.4,3,6C2.7,6.2,2.3,6.3,2,6.3z"/>
+</defs>
+</svg>
+
+<!-- ── Site Header ── -->
+<header class="site-header">
+  <a href="index.html" class="logo">Set</a>
+  <nav class="site-nav" aria-label="Main navigation">
+    <a href="index.html">Home</a>
+    <a href="play.html" class="active">Play</a>
+    <a href="solve.html">Solve</a>
+  </nav>
+</header>
+
+<!-- ── Page Content ── -->
+<main class="page-content">
+
+  <!-- Score panel -->
+  <div class="score-panel" id="score-panel" aria-live="polite" aria-label="Scores">
+    <div class="score-card">
+      <div class="player-name">Player 1</div>
+      <div class="player-score" id="score-p1">0</div>
+      <div class="score-label">Sets found</div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="btn btn-primary" id="btn-new-game">New Game</button>
+    <button class="btn btn-secondary" id="btn-hint">Hint</button>
+    <button class="btn btn-secondary" id="btn-show-sets">All Sets</button>
+    <span class="game-status" id="game-status" aria-live="polite"></span>
+  </div>
+
+  <!-- Card board -->
+  <div id="board" role="region" aria-label="Game board"></div>
+
+</main>
+
+<!-- ── All Sets Overlay ── -->
+<div class="modal-overlay hidden" id="sets-overlay" role="dialog" aria-modal="true" aria-labelledby="sets-overlay-title">
+  <div class="modal sets-overlay-modal">
+    <div class="sets-overlay-header">
+      <h2 id="sets-overlay-title">All Sets on Board</h2>
+      <button class="btn btn-secondary sets-overlay-close" id="btn-close-sets" aria-label="Close">✕</button>
+    </div>
+    <div id="sets-overlay-list" class="sets-result-list"></div>
+  </div>
+</div>
+
+<!-- ── Game Over Modal ── -->
+<div class="modal-overlay hidden" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal">
+    <h2 id="modal-title">Game Over</h2>
+    <p style="color:#a8c8a0;font-size:0.9rem;margin-bottom:16px">The deck is empty and no Sets remain.</p>
+    <div class="final-scores" id="modal-scores"></div>
+    <button class="btn btn-primary" id="btn-play-again" style="margin-top:24px;width:100%">Play Again</button>
+  </div>
+</div>
+
+<script type="module" src="js/play.js"></script>
+</body>
+</html>

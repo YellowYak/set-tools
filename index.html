@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Set — Card Game</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ── Hidden SVG Defs (shapes + hatch patterns) ── -->
+<svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true">
+<defs>
+  <pattern id="hatch-red" x="0" y="0" width="12" height="1.5" patternUnits="userSpaceOnUse">
+    <line x1="0" y1="0.75" x2="12" y2="0.75" stroke="#C93030" stroke-width="0.5"/>
+  </pattern>
+  <pattern id="hatch-green" x="0" y="0" width="12" height="1.5" patternUnits="userSpaceOnUse">
+    <line x1="0" y1="0.75" x2="12" y2="0.75" stroke="#2A7A2A" stroke-width="0.5"/>
+  </pattern>
+  <pattern id="hatch-purple" x="0" y="0" width="12" height="1.5" patternUnits="userSpaceOnUse">
+    <line x1="0" y1="0.75" x2="12" y2="0.75" stroke="#7040A0" stroke-width="0.5"/>
+  </pattern>
+  <path id="oval" d="M 3,1 L 9,1 A 3,3 0 0 1 9,7 L 3,7 A 3,3 0 0 1 3,1 Z"/>
+  <path id="diamond" d="M 6,0.5 L 11,4 L 6,7.5 L 1,4 Z"/>
+  <path id="squiggle" d="M2,6.3C1.4,6.3,0.9,6,0.5,5.5C0,4.7,0.2,3.6,1,3c1.9-1.3,4-1.7,6-0.6c0.7,0.4,1.3,0.2,1.9-0.3c0.7-0.6,1.8-0.5,2.5,0.2
+    c0.6,0.7,0.5,1.8-0.2,2.5C9.4,6.3,7.3,6.6,5.3,5.5C4.5,5.1,3.7,5.4,3,6C2.7,6.2,2.3,6.3,2,6.3z"/>
+</defs>
+</svg>
+
+<!-- ── Site Header ── -->
+<header class="site-header">
+  <span class="logo">Set</span>
+  <nav class="site-nav" aria-label="Main navigation">
+    <a href="index.html" class="active">Home</a>
+    <a href="play.html">Play</a>
+    <a href="solve.html">Solve</a>
+  </nav>
+</header>
+
+<!-- ── Hero ── -->
+<div class="hero">
+  <h1>Set</h1>
+  <p>A fast-paced card game of visual perception. Find matching patterns before your opponents do.</p>
+  <div class="hero-actions">
+    <a href="play.html" class="btn btn-primary">Play Game</a>
+    <a href="solve.html" class="btn btn-secondary">Board Solver</a>
+  </div>
+</div>
+
+<!-- ── Decorative card spread ──
+     Colors below are hardcoded SVG presentation attributes (can't use CSS vars directly).
+     They must match --color-red, --color-green, --color-purple in style.css. -->
+<div class="decorative-spread" aria-hidden="true">
+  <!-- 3 red solid ovals -->
+  <div class="card" style="cursor:default">
+    <svg viewBox="0 0 12 8"><use href="#oval" fill="#C93030" stroke="#C93030" stroke-width="0.2"/></svg>
+    <svg viewBox="0 0 12 8"><use href="#oval" fill="#C93030" stroke="#C93030" stroke-width="0.2"/></svg>
+    <svg viewBox="0 0 12 8"><use href="#oval" fill="#C93030" stroke="#C93030" stroke-width="0.2"/></svg>
+  </div>
+  <!-- 1 green striped diamond -->
+  <div class="card" style="cursor:default">
+    <svg viewBox="0 0 12 8"><use href="#diamond" fill="url(#hatch-green)" stroke="#2A7A2A" stroke-width="0.5"/></svg>
+  </div>
+  <!-- 2 purple open squiggles -->
+  <div class="card" style="cursor:default">
+    <svg viewBox="0 0 12 8"><use href="#squiggle" fill="none" stroke="#7040A0" stroke-width="0.5"/></svg>
+    <svg viewBox="0 0 12 8"><use href="#squiggle" fill="none" stroke="#7040A0" stroke-width="0.5"/></svg>
+  </div>
+  <!-- 1 red open oval -->
+  <div class="card" style="cursor:default">
+    <svg viewBox="0 0 12 8"><use href="#oval" fill="none" stroke="#C93030" stroke-width="0.5"/></svg>
+  </div>
+  <!-- 2 red solid diamonds -->
+  <div class="card" style="cursor:default">
+    <svg viewBox="0 0 12 8"><use href="#diamond" fill="#C93030" stroke="#C93030" stroke-width="0.2"/></svg>
+    <svg viewBox="0 0 12 8"><use href="#diamond" fill="#C93030" stroke="#C93030" stroke-width="0.2"/></svg>
+  </div>
+  <!-- 3 green solid squiggles -->
+  <div class="card" style="cursor:default">
+    <svg viewBox="0 0 12 8"><use href="#squiggle" fill="#2A7A2A" stroke="#2A7A2A" stroke-width="0.2"/></svg>
+    <svg viewBox="0 0 12 8"><use href="#squiggle" fill="#2A7A2A" stroke="#2A7A2A" stroke-width="0.2"/></svg>
+    <svg viewBox="0 0 12 8"><use href="#squiggle" fill="#2A7A2A" stroke="#2A7A2A" stroke-width="0.2"/></svg>
+  </div>
+  <!-- 3 purple striped ovals -->
+  <div class="card" style="cursor:default">
+    <svg viewBox="0 0 12 8"><use href="#oval" fill="url(#hatch-purple)" stroke="#7040A0" stroke-width="0.5"/></svg>
+    <svg viewBox="0 0 12 8"><use href="#oval" fill="url(#hatch-purple)" stroke="#7040A0" stroke-width="0.5"/></svg>
+    <svg viewBox="0 0 12 8"><use href="#oval" fill="url(#hatch-purple)" stroke="#7040A0" stroke-width="0.5"/></svg>
+  </div>
+  <!-- 2 red striped squiggles -->
+  <div class="card" style="cursor:default">
+    <svg viewBox="0 0 12 8"><use href="#squiggle" fill="url(#hatch-red)" stroke="#C93030" stroke-width="0.5"/></svg>
+    <svg viewBox="0 0 12 8"><use href="#squiggle" fill="url(#hatch-red)" stroke="#C93030" stroke-width="0.5"/></svg>
+  </div>
+</div>
+
+<!-- ── Rules summary ── -->
+<section class="rules-section">
+  <h2>How to Play</h2>
+  <p>Each card has four features: <strong>color</strong> (red, green, purple), <strong>shape</strong> (oval, diamond, squiggle), <strong>count</strong> (1, 2, 3), and <strong>fill</strong> (solid, striped, open).</p>
+  <p style="margin-top:10px">A <strong>Set</strong> is three cards where, for each feature, the values are either <em>all the same</em> or <em>all different</em> across the three cards. No feature may have two matching and one different.</p>
+  <ul style="margin-top:10px">
+    <li>12 cards are dealt face-up in a grid.</li>
+    <li>Find a Set, select those 3 cards — they're removed and replaced.</li>
+    <li>If no Set exists, 3 extra cards are added.</li>
+    <li>The game ends when the deck is empty and no Sets remain.</li>
+  </ul>
+  <div class="rule-example">
+    <strong>Example Set:</strong> 1 purple open squiggle · 1 green striped diamond · 1 red solid oval<br>
+    Count: all 1. Color: all different. Fill: all different. Shape: all different. ✓
+  </div>
+</section>
+
+</body>
+</html>

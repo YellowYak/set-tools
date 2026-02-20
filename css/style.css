@@ -1,0 +1,730 @@
+/* ============================================================
+   Set Card Game — Shared Stylesheet
+   ============================================================ */
+
+/* ── Custom Properties ── */
+:root {
+  --color-red:    #C93030;
+  --color-green:  #2A7A2A;
+  --color-purple: #7040A0;
+
+  --bg-table:     #2d5a27;
+  --bg-table-alt: #3a6b32;
+
+  --card-bg:      #ffffff;
+  --card-border:  #ddd;
+  --card-radius:  11px;
+  --card-w:       108px;
+  --card-h:       156px;
+  --card-gap:     14px;
+
+  --selected-color:   #2563eb;
+  --selected-shadow:  0 0 0 3px #2563eb, 0 0 16px 4px rgba(37,99,235,0.45);
+
+  --font-sans:   'Source Sans 3', system-ui, sans-serif;
+  --font-serif:  'Playfair Display', Georgia, serif;
+}
+
+/* ── Reset ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Base ── */
+html {
+  font-size: 16px;
+  /* Prevent deal-in animation (which starts cards off-screen to the right)
+     from triggering a horizontal scrollbar on Windows. Using html rather than
+     body so that position:fixed elements (modals, toasts) are unaffected. */
+  overflow-x: hidden;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-table);
+  background-image:
+    radial-gradient(ellipse at 20% 20%, rgba(60,120,50,0.4) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 80%, rgba(20,60,15,0.5) 0%, transparent 60%),
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 4px,
+      rgba(0,0,0,0.04) 4px,
+      rgba(0,0,0,0.04) 8px
+    );
+  min-height: 100vh;
+  color: #f0ebe0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ── Site Header / Nav ── */
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  background: rgba(0,0,0,0.25);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.site-header .logo {
+  font-family: var(--font-serif);
+  font-size: 1.6rem;
+  color: #f5e6c8;
+  text-shadow: 1px 2px 6px rgba(0,0,0,0.5);
+  letter-spacing: 0.5px;
+}
+
+.site-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.site-nav a {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 7px 18px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(255,255,255,0.25);
+  color: #d8efd4;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.site-nav a:hover {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.4);
+  color: #fff;
+}
+
+.site-nav a.active {
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.5);
+  color: #fff;
+}
+
+/* ── Page Content ── */
+.page-content {
+  padding: 28px 20px 48px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* ── Section Labels ── */
+.section-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #88bb80;
+  margin-bottom: 14px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(136,187,128,0.3);
+}
+
+/* ============================================================
+   Card Component
+   ============================================================ */
+.card {
+  width: var(--card-w);
+  height: var(--card-h);
+  background: var(--card-bg);
+  border-radius: var(--card-radius);
+  border: 1.5px solid var(--card-border);
+  box-shadow:
+    0 2px 4px rgba(0,0,0,0.15),
+    0 6px 20px rgba(0,0,0,0.25),
+    inset 0 1px 0 rgba(255,255,255,0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 10px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  position: relative;
+}
+
+.card svg {
+  height: 38px;
+  width: auto;
+  display: block;
+  overflow: visible;
+}
+
+.card:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow:
+    0 4px 8px rgba(0,0,0,0.2),
+    0 12px 32px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.8);
+}
+
+/* Selected state */
+.card.selected {
+  border-color: var(--selected-color);
+  box-shadow: var(--selected-shadow);
+  transform: translateY(-4px) scale(1.04);
+}
+
+/* Error flash — red pulse */
+@keyframes flash-error {
+  0%   { background: #fff; }
+  20%  { background: #fde8e8; box-shadow: 0 0 0 3px #C93030, 0 0 16px 4px rgba(201,48,48,0.4); }
+  60%  { background: #fde8e8; }
+  100% { background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.15), 0 6px 20px rgba(0,0,0,0.25); }
+}
+
+.card.flash-error {
+  animation: flash-error 0.6s ease forwards;
+}
+
+/* Original card hidden while clone flies — keeps grid space intact */
+.card.flying {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Deal-in animation — cards fly in from off-screen top-right (deck position).
+   translate() is relative to the card's final grid slot, so 120vw guarantees
+   the starting point is off-screen regardless of column position.
+   transform does not affect layout, so no scrollbars are triggered. */
+@keyframes card-deal-in {
+  from {
+    opacity: 0;
+    transform: translate(120vw, -60vh) rotate(-20deg) scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+}
+
+.card.dealing {
+  /* fill-mode "both": applies the `from` keyframe during the delay period so the
+     card stays invisible and off-screen while waiting, not at its final position. */
+  animation: card-deal-in 0.45s cubic-bezier(0.15, 0.85, 0.35, 1) both;
+}
+
+/* Score panel pulse when cards arrive */
+@keyframes score-pulse {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+.score-card.score-pulse {
+  animation: score-pulse 0.35s ease-out forwards;
+}
+
+/* Hint highlight */
+.card.hint {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px #f59e0b, 0 0 16px 4px rgba(245,158,11,0.45);
+}
+
+/* Hinted AND selected — orange inner ring, blue outer ring */
+.card.hint.selected {
+  border-color: var(--selected-color);
+  box-shadow:
+    0 0 0 2px #f59e0b,
+    0 0 0 5px #2563eb,
+    0 0 18px 4px rgba(37,99,235,0.4);
+  transform: translateY(-4px) scale(1.04);
+}
+
+/* ============================================================
+   Card Grid (play board)
+   ============================================================ */
+#board {
+  display: grid;
+  grid-template-columns: repeat(4, var(--card-w));
+  gap: var(--card-gap);
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+/* ============================================================
+   Controls Bar
+   ============================================================ */
+.controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.btn {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  padding: 9px 22px;
+  border-radius: 22px;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-primary {
+  background: #f5e6c8;
+  color: #2d3a1e;
+}
+
+.btn-primary:hover {
+  opacity: 0.88;
+}
+
+.btn-secondary {
+  background: rgba(255,255,255,0.15);
+  color: #f0ebe0;
+  border: 1.5px solid rgba(255,255,255,0.25);
+}
+
+.btn-secondary:hover {
+  background: rgba(255,255,255,0.22);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   Score Panel
+   ============================================================ */
+.score-panel {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.score-card {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  padding: 10px 20px;
+  min-width: 120px;
+  text-align: center;
+}
+
+.score-card .player-name {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #88bb80;
+  margin-bottom: 4px;
+}
+
+.score-card .player-score {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #f5e6c8;
+  line-height: 1;
+}
+
+.score-card .score-label {
+  font-size: 0.7rem;
+  color: #a8c8a0;
+  margin-top: 2px;
+}
+
+/* ============================================================
+   Deck / Status Info
+   ============================================================ */
+.game-status {
+  font-size: 0.8rem;
+  color: #a8c8a0;
+  margin-left: auto;
+  align-self: center;
+}
+
+/* ============================================================
+   Toast Notifications
+   ============================================================ */
+#toast-container {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 200;
+  pointer-events: none;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@keyframes toast-out {
+  from { opacity: 1; transform: translateY(0);   }
+  to   { opacity: 0; transform: translateY(-6px); }
+}
+
+.toast {
+  background: rgba(20, 14, 4, 0.88);
+  color: #f5e6c8;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  border-radius: 24px;
+  padding: 10px 22px;
+  font-size: 0.85rem;
+  font-style: italic;
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+  animation: toast-in 0.22s ease forwards;
+}
+
+.toast.hiding {
+  animation: toast-out 0.28s ease forwards;
+}
+
+/* ============================================================
+   Game Over Modal
+   ============================================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.modal-overlay.hidden {
+  display: none;
+}
+
+.modal {
+  background: #2a4a22;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 16px;
+  padding: 36px 40px;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+
+.modal h2 {
+  font-family: var(--font-serif);
+  font-size: 1.8rem;
+  color: #f5e6c8;
+  margin-bottom: 16px;
+}
+
+.modal .final-scores {
+  margin: 20px 0;
+}
+
+.modal .final-score-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  font-size: 1rem;
+  color: #d8efd4;
+}
+
+.modal .final-score-row:last-child {
+  border-bottom: none;
+}
+
+.modal .winner-label {
+  color: #f5e6c8;
+  font-weight: 700;
+}
+
+/* ============================================================
+   All Sets Overlay (play page)
+   ============================================================ */
+.sets-overlay-modal {
+  max-width: 520px;
+  max-height: 80vh;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.sets-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.sets-overlay-header h2 {
+  margin-bottom: 0;
+}
+
+.sets-overlay-close {
+  padding: 5px 13px;
+  font-size: 0.85rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   Solve Page
+   ============================================================ */
+.solve-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 28px;
+}
+
+@media (min-width: 900px) {
+  .solve-layout {
+    grid-template-columns: 1fr 340px;
+  }
+}
+
+.solve-board-area {
+  min-height: 200px;
+}
+
+.solve-board {
+  display: grid;
+  grid-template-columns: repeat(4, var(--card-w));
+  gap: var(--card-gap);
+  min-height: 100px;
+}
+
+.solve-board-empty {
+  color: #7aaa72;
+  font-size: 0.875rem;
+  padding: 20px 0;
+  font-style: italic;
+}
+
+/* Sets results */
+.sets-result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.set-result-item {
+  background: rgba(0,0,0,0.15);
+  border-radius: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.set-result-item .set-number {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #88bb80;
+  margin-bottom: 10px;
+}
+
+.set-result-cards {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Mini cards in solve results */
+.set-result-cards .card {
+  --card-w: 72px;
+  --card-h: 104px;
+  cursor: default;
+  pointer-events: none;
+}
+
+.set-result-cards .card:hover {
+  transform: none;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15), 0 6px 20px rgba(0,0,0,0.25);
+}
+
+.set-result-cards .card svg {
+  height: 26px;
+}
+
+/* Card picker */
+.card-picker-panel {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.card-picker-panel .section-label {
+  margin-bottom: 12px;
+}
+
+.card-picker-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 600px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Picker cards are smaller */
+.card-picker-grid .card {
+  --card-w: 68px;
+  --card-h: 98px;
+  gap: 4px;
+  padding: 8px 6px;
+}
+
+.card-picker-grid .card svg {
+  height: 24px;
+}
+
+/* Card on board (in solve picker) is visually muted */
+.card-picker-grid .card.on-board {
+  opacity: 0.35;
+  transform: none !important;
+}
+
+/* No-sets message */
+.no-sets-msg {
+  color: #a8c8a0;
+  font-size: 0.875rem;
+  font-style: italic;
+  padding: 12px 0;
+}
+
+/* ============================================================
+   Index / Landing Page
+   ============================================================ */
+.hero {
+  text-align: center;
+  padding: 52px 20px 40px;
+}
+
+.hero h1 {
+  font-family: var(--font-serif);
+  font-size: clamp(2.4rem, 6vw, 4rem);
+  color: #f5e6c8;
+  text-shadow: 1px 2px 8px rgba(0,0,0,0.5);
+  margin-bottom: 16px;
+}
+
+.hero p {
+  font-size: 1rem;
+  color: #a8c8a0;
+  max-width: 500px;
+  margin: 0 auto 32px;
+  line-height: 1.65;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.hero-actions .btn {
+  font-size: 1rem;
+  padding: 12px 32px;
+}
+
+.decorative-spread {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  padding: 32px 20px 0;
+}
+
+.rules-section {
+  max-width: 640px;
+  margin: 48px auto 0;
+  padding: 0 20px;
+}
+
+.rules-section h2 {
+  font-family: var(--font-serif);
+  font-size: 1.4rem;
+  color: #f5e6c8;
+  margin-bottom: 16px;
+}
+
+.rules-section p,
+.rules-section li {
+  color: #c8e0c4;
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.rules-section ul {
+  padding-left: 1.4em;
+  margin: 10px 0;
+}
+
+.rules-section .rule-example {
+  background: rgba(0,0,0,0.2);
+  border-radius: 10px;
+  border-left: 3px solid #88bb80;
+  padding: 12px 16px;
+  margin-top: 16px;
+  font-size: 0.85rem;
+  color: #a8c8a0;
+}
+
+/* ============================================================
+   Responsive Tweaks
+   ============================================================ */
+@media (max-width: 600px) {
+  :root {
+    --card-w: 90px;
+    --card-h: 130px;
+    --card-gap: 10px;
+  }
+
+  .card svg {
+    height: 30px;
+  }
+
+  .site-header .logo {
+    font-size: 1.3rem;
+  }
+
+  .modal {
+    padding: 28px 24px;
+  }
+}
+
+@media (max-width: 400px) {
+  :root {
+    --card-w: 78px;
+    --card-h: 113px;
+    --card-gap: 8px;
+  }
+
+  .card svg {
+    height: 26px;
+  }
+}

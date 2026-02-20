@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Set — Solver</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ── Hidden SVG Defs ── -->
+<svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true">
+<defs>
+  <pattern id="hatch-red" x="0" y="0" width="12" height="1.5" patternUnits="userSpaceOnUse">
+    <line x1="0" y1="0.75" x2="12" y2="0.75" stroke="#C93030" stroke-width="0.5"/>
+  </pattern>
+  <pattern id="hatch-green" x="0" y="0" width="12" height="1.5" patternUnits="userSpaceOnUse">
+    <line x1="0" y1="0.75" x2="12" y2="0.75" stroke="#2A7A2A" stroke-width="0.5"/>
+  </pattern>
+  <pattern id="hatch-purple" x="0" y="0" width="12" height="1.5" patternUnits="userSpaceOnUse">
+    <line x1="0" y1="0.75" x2="12" y2="0.75" stroke="#7040A0" stroke-width="0.5"/>
+  </pattern>
+  <path id="oval" d="M 3,1 L 9,1 A 3,3 0 0 1 9,7 L 3,7 A 3,3 0 0 1 3,1 Z"/>
+  <path id="diamond" d="M 6,0.5 L 11,4 L 6,7.5 L 1,4 Z"/>
+  <path id="squiggle" d="M2,6.3C1.4,6.3,0.9,6,0.5,5.5C0,4.7,0.2,3.6,1,3c1.9-1.3,4-1.7,6-0.6c0.7,0.4,1.3,0.2,1.9-0.3c0.7-0.6,1.8-0.5,2.5,0.2
+    c0.6,0.7,0.5,1.8-0.2,2.5C9.4,6.3,7.3,6.6,5.3,5.5C4.5,5.1,3.7,5.4,3,6C2.7,6.2,2.3,6.3,2,6.3z"/>
+</defs>
+</svg>
+
+<!-- ── Site Header ── -->
+<header class="site-header">
+  <a href="index.html" class="logo">Set</a>
+  <nav class="site-nav" aria-label="Main navigation">
+    <a href="index.html">Home</a>
+    <a href="play.html">Play</a>
+    <a href="solve.html" class="active">Solve</a>
+  </nav>
+</header>
+
+<!-- ── Page Content ── -->
+<main class="page-content">
+
+  <div class="solve-layout">
+
+    <!-- ── Left column: board + results ── -->
+    <div>
+
+      <!-- Current board -->
+      <div class="solve-board-area">
+        <p class="section-label">Board <span id="board-count" style="color:#a8c8a0;font-weight:400;text-transform:none;letter-spacing:0">(0 cards)</span></p>
+
+        <div class="controls" style="margin-bottom:16px">
+          <button class="btn btn-primary" id="btn-random">Deal 12 Random</button>
+          <button class="btn btn-secondary" id="btn-find-sets">Find All Sets</button>
+          <button class="btn btn-secondary" id="btn-clear-board">Clear Board</button>
+        </div>
+
+        <div id="solve-board" class="solve-board" role="region" aria-label="Solver board">
+          <p class="solve-board-empty" id="board-empty-msg">No cards on the board yet. Pick cards from the panel, or deal a random hand.</p>
+        </div>
+      </div>
+
+      <!-- Sets results -->
+      <div id="results-area" style="margin-top:32px">
+        <p class="section-label" id="results-label" style="display:none">Sets Found</p>
+        <div id="sets-result-list" class="sets-result-list"></div>
+      </div>
+
+    </div>
+
+    <!-- ── Right column: card picker ── -->
+    <div class="card-picker-panel">
+      <p class="section-label">All 81 Cards <span style="color:#a8c8a0;font-weight:400;text-transform:none;letter-spacing:0;font-size:0.75rem">— click to add/remove</span></p>
+      <div id="card-picker" class="card-picker-grid" role="list" aria-label="Card library"></div>
+    </div>
+
+  </div>
+
+</main>
+
+<script type="module" src="js/solve.js"></script>
+</body>
+</html>
