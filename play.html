@@ -45,9 +45,20 @@
 
   <!-- Score panel -->
   <div class="score-panel" id="score-panel" aria-live="polite" aria-label="Scores">
-    <div class="score-card">
+    <div class="score-card" id="score-p1-card">
       <div class="player-name">Player 1</div>
       <div class="player-score" id="score-p1">0</div>
+      <div class="score-label">Sets found</div>
+    </div>
+    <div class="score-card" id="score-timer-card">
+      <div class="player-name">Time</div>
+      <div class="player-score timer-display" id="timer-display">0:00</div>
+      <div class="score-label">elapsed</div>
+    </div>
+    <div class="score-card hidden" id="score-computer-card">
+      <div class="player-name">Computer</div>
+      <div class="difficulty-label" id="computer-difficulty"></div>
+      <div class="player-score" id="score-computer">0</div>
       <div class="score-label">Sets found</div>
     </div>
   </div>
@@ -57,6 +68,7 @@
     <button class="btn btn-primary" id="btn-new-game">New Game</button>
     <button class="btn btn-secondary" id="btn-hint">Hint</button>
     <button class="btn btn-secondary" id="btn-show-sets">All Sets</button>
+    <button class="btn btn-secondary" id="btn-pause">Pause</button>
     <span class="game-status" id="game-status" aria-live="polite"></span>
   </div>
 
@@ -64,6 +76,42 @@
   <div id="board" role="region" aria-label="Game board"></div>
 
 </main>
+
+<!-- ── Pause Overlay ── -->
+<div class="modal-overlay hidden" id="pause-overlay" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+  <div class="modal">
+    <h2 id="pause-title">Game Paused</h2>
+    <p style="color:#a8c8a0;font-size:0.9rem;margin-bottom:24px">Take a breather — the game will be right here when you return.</p>
+    <button class="btn btn-primary" id="btn-resume" style="width:100%">Resume</button>
+  </div>
+</div>
+
+<!-- ── Mode Selection Modal ── -->
+<div class="modal-overlay" id="modal-mode" role="dialog" aria-modal="true" aria-labelledby="modal-mode-title">
+  <div class="modal">
+    <h2 id="modal-mode-title">New Game</h2>
+    <p style="color:#a8c8a0;font-size:0.9rem;margin-bottom:24px">Choose your game mode</p>
+    <div class="mode-buttons">
+      <button class="btn btn-primary" id="btn-solo">Single Player</button>
+      <button class="btn btn-secondary" id="btn-vs-computer">vs Computer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Difficulty Selection Modal ── -->
+<div class="modal-overlay hidden" id="modal-difficulty" role="dialog" aria-modal="true" aria-labelledby="modal-diff-title">
+  <div class="modal">
+    <h2 id="modal-diff-title">Choose Difficulty</h2>
+    <p style="color:#a8c8a0;font-size:0.9rem;margin-bottom:24px">How quickly should the computer find Sets?</p>
+    <div class="difficulty-buttons">
+      <button class="btn btn-secondary difficulty-btn" data-difficulty="easy">Easy</button>
+      <button class="btn btn-secondary difficulty-btn" data-difficulty="medium">Medium</button>
+      <button class="btn btn-secondary difficulty-btn" data-difficulty="hard">Hard</button>
+      <button class="btn btn-secondary difficulty-btn" data-difficulty="genius">Genius</button>
+    </div>
+    <button class="btn btn-secondary" id="btn-back-to-mode" style="margin-top:16px;opacity:0.7;width:100%">← Back</button>
+  </div>
+</div>
 
 <!-- ── All Sets Overlay ── -->
 <div class="modal-overlay hidden" id="sets-overlay" role="dialog" aria-modal="true" aria-labelledby="sets-overlay-title">

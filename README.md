@@ -18,7 +18,7 @@ Any static file server will do (VS Code Live Server, `npx serve`, etc.).
 | Page | Description |
 |---|---|
 | `index.html` | Landing page with rules summary and navigation |
-| `play.html` | Play the game — single player, full game loop |
+| `play.html` | Play the game — single player or vs Computer, full game loop |
 | `solve.html` | Board builder and Set solver — add any cards, find all Sets |
 
 ## The Game
@@ -39,8 +39,23 @@ A **Set** is any three cards where, for each of the four features, the values ac
 ## Features
 
 ### Play page
+
+**Game modes** — chosen at the start of every game:
+- **Single Player** — play at your own pace, finding Sets until the deck runs out
+- **vs Computer** — race the computer to find Sets; choose a difficulty level:
+  | Difficulty | Computer response time |
+  |---|---|
+  | Easy | 10–30 seconds |
+  | Medium | 7.5–20 seconds |
+  | Hard | 5–15 seconds |
+  | Genius | 2–8 seconds |
+
+  The computer waits a random duration (within the range for the chosen difficulty) then claims a Set if the player hasn't found one first. Each round uses a fresh random delay. The computer's score card shows the active difficulty level.
+
+**Score panel** — Player 1 score on the left, elapsed time centered, Computer score on the right (vs Computer mode only).
+
 - Click or tap cards to select them; the third selection triggers immediate validation
-- Valid Set: cards animate off the board and fly to the score panel
+- Valid Set: cards animate off the board and fly to the scoring player's score card
 - Invalid Set: cards flash red and deselect
 - New replacement cards deal in from off-screen with a staggered animation
 - **Hint system** — progressive, one card revealed per click:
@@ -50,8 +65,10 @@ A **Set** is any three cards where, for each of the four features, the values ac
   - Further clicks: reminder that all three are shown
   - Hint resets automatically when a Set is completed
 - **All Sets** button opens an overlay listing every valid Set on the current board as mini-card triplets (click outside or press Escape to close)
+- **Pause** — freezes the timer and the computer's countdown; an opaque overlay hides the board. Resume by clicking the Resume button or pressing Escape
+- **Timer** counts up from 0:00 when the game starts and freezes when the game ends
 - Status bar shows cards remaining in deck, cards on board, and Sets currently present
-- Game-over summary modal when the deck is exhausted
+- Game-over modal declares the winner (vs Computer) or shows per-Set timing stats (single player)
 
 ### Solve page
 - Browse all 81 cards in a scrollable picker; click any card to add/remove it from the board
