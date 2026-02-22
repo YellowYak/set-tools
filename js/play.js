@@ -2,11 +2,15 @@
  * play.js — Game loop for play.html
  *
  * State:
- *   deck     — remaining undealt cards
- *   board    — cards currently visible (parallel array to DOM children of #board)
- *   selected — indices (into board) of currently selected cards (max 3)
- *   scores   — array of player scores (currently single player)
- *   busy     — true while an animation is running (blocks new selections)
+ *   deck             — remaining undealt cards
+ *   board            — cards currently visible (parallel array to DOM children of #board)
+ *   selected         — indices (into board) of currently selected cards (max 3)
+ *   scores           — array of player scores (currently single player)
+ *   busy             — true while an animation is running (blocks new selections)
+ *   gameMode         — 'solo' | 'vs-computer'
+ *   difficulty       — 'easy' | 'medium' | 'hard' | 'genius'
+ *   computerScore    — sets found by the computer
+ *   computerTimerHandle — setTimeout handle for the computer's next move
  */
 
 import { createDeck, shuffle, pluralize } from './deck.js';
@@ -14,20 +18,30 @@ import { isSet, findAllSets, hasSet } from './set-logic.js';
 import { createCardEl } from './card-render.js';
 
 // ── DOM References ──────────────────────────────────────────
-const boardEl       = document.getElementById('board');
-const scoreP1El     = document.getElementById('score-p1');
-const scoreCardEl   = document.querySelector('.score-card');
-const statusEl      = document.getElementById('game-status');
-const btnNewGame    = document.getElementById('btn-new-game');
-const btnHint       = document.getElementById('btn-hint');
-const modalOverlay   = document.getElementById('modal-overlay');
-const modalScores    = document.getElementById('modal-scores');
-const btnPlayAgain   = document.getElementById('btn-play-again');
-const btnShowSets    = document.getElementById('btn-show-sets');
-const setsOverlay    = document.getElementById('sets-overlay');
-const setsOverlayList = document.getElementById('sets-overlay-list');
-const btnCloseSets   = document.getElementById('btn-close-sets');
-const timerDisplayEl = document.getElementById('timer-display');
+const boardEl            = document.getElementById('board');
+const scoreP1El          = document.getElementById('score-p1');
+const scoreCardEl        = document.querySelector('.score-card');
+const scoreComputerCardEl = document.getElementById('score-computer-card');
+const scoreComputerEl    = document.getElementById('score-computer');
+const statusEl           = document.getElementById('game-status');
+const btnNewGame         = document.getElementById('btn-new-game');
+const btnHint            = document.getElementById('btn-hint');
+const modalOverlay       = document.getElementById('modal-overlay');
+const modalScores        = document.getElementById('modal-scores');
+const btnPlayAgain       = document.getElementById('btn-play-again');
+const btnShowSets        = document.getElementById('btn-show-sets');
+const setsOverlay        = document.getElementById('sets-overlay');
+const setsOverlayList    = document.getElementById('sets-overlay-list');
+const btnCloseSets       = document.getElementById('btn-close-sets');
+const timerDisplayEl     = document.getElementById('timer-display');
+const pauseOverlay       = document.getElementById('pause-overlay');
+const btnPause           = document.getElementById('btn-pause');
+const btnResume          = document.getElementById('btn-resume');
+const modalMode          = document.getElementById('modal-mode');
+const modalDifficulty    = document.getElementById('modal-difficulty');
+const btnSolo            = document.getElementById('btn-solo');
+const btnVsComputer      = document.getElementById('btn-vs-computer');
+const btnBackToMode      = document.getElementById('btn-back-to-mode');
 
 // ── Game State ──────────────────────────────────────────────
 let deck     = [];
@@ -35,6 +49,12 @@ let board    = [];   // card objects on the board
 let selected = [];   // indices into board[]
 let scores   = [0];  // one entry per player
 let busy     = false;
+
+// Mode & computer state
+let gameMode          = 'solo';    // 'solo' | 'vs-computer'
+let difficulty        = 'medium';  // 'easy' | 'medium' | 'hard' | 'genius'
+let computerScore     = 0;
+let computerTimerHandle = null;
 
 // Hint state
 // hintStep:       how many of the hint set's cards have been revealed (0–3)
@@ -49,17 +69,59 @@ let finalTimeStr  = '0:00'; // frozen display value after game ends
 let lastSetTime   = 0;    // Date.now() at game start or last Set completion
 let setTimes      = [];   // ms elapsed for each successfully found Set
 
+// Pause state
+let paused                = false;
+let pausedElapsed         = 0; // ms elapsed when paused
+let computerTimerDeadline = 0; // Date.now() + delay when computer timer was scheduled
+let computerPauseRemaining = 0; // ms left on computer timer when paused
+
+// ── Difficulty Ranges (ms) ──────────────────────────────────
+const DIFFICULTY_RANGES = {
+  easy:   [10000, 30000],
+  medium: [7500,  20000],
+  hard:   [5000,  15000],
+  genius: [2000,   8000],
+};
+
+// ── Mode Selection ───────────────────────────────────────────
+function showModeModal() {
+  modalOverlay.classList.add('hidden');
+  modalDifficulty.classList.add('hidden');
+  setsOverlay.classList.add('hidden');
+  modalMode.classList.remove('hidden');
+}
+
+function showDifficultyModal() {
+  modalMode.classList.add('hidden');
+  modalDifficulty.classList.remove('hidden');
+}
+
 // ── Initialisation ──────────────────────────────────────────
-function initGame() {
+function startGame() {
   resetHint();
-  deck     = shuffle(createDeck());
-  board    = [];
-  selected = [];
-  scores   = [0];
-  busy     = false;
+  clearComputerTimer();
+  deck          = shuffle(createDeck());
+  board         = [];
+  selected      = [];
+  scores        = [0];
+  computerScore = 0;
+  busy          = false;
+
+  // Show or hide the computer score card based on mode
+  scoreComputerCardEl.classList.toggle('hidden', gameMode !== 'vs-computer');
+  document.getElementById('computer-difficulty').textContent =
+    gameMode === 'vs-computer' ? difficulty : '';
+
+  paused = false;
+  pausedElapsed = 0;
+  computerTimerDeadline = 0;
+  computerPauseRemaining = 0;
 
   boardEl.innerHTML = '';
   updateScoreDisplay();
+  pauseOverlay.classList.add('hidden');
+  modalMode.classList.add('hidden');
+  modalDifficulty.classList.add('hidden');
   modalOverlay.classList.add('hidden');
 
   // Deal initial 12 cards, then ensure a Set exists (silent — no toast at start).
@@ -67,6 +129,10 @@ function initGame() {
   ensureSetOnBoard(null, false);
   updateStatus();
   startTimer();
+
+  if (gameMode === 'vs-computer') {
+    scheduleComputerMove();
+  }
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -144,17 +210,17 @@ function ensureSetOnBoard(onDone = null, notify = true) {
     return;
   }
   // Notify path: pause so the player can read the toast before cards appear.
-  showToast('No sets on the board — adding 3 more cards…', 2200);
   setTimeout(() => {
+    showToast('No sets on the board — adding 3 more cards…');
     dealCards(3, 0);
     ensureSetOnBoard(onDone, true);
-  }, 2000);
+  }, 3000);
 }
 
 // ── Selection & Validation ──────────────────────────────────
 function onCardPointerDown(e) {
   e.preventDefault(); // prevent mouse event double-fire on touch
-  if (busy) return;
+  if (busy || paused) return;
   const el = e.currentTarget;
   const idx = indexOfEl(el);
   if (idx === -1) return;
@@ -164,7 +230,7 @@ function onCardPointerDown(e) {
 function onCardKeyDown(e) {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
-    if (busy) return;
+    if (busy || paused) return;
     const idx = indexOfEl(e.currentTarget);
     if (idx !== -1) toggleSelect(idx);
   }
@@ -211,14 +277,20 @@ function handleSuccess(els, indices) {
   lastSetTime = now;
   busy = true;
   resetHint();
-  showToast('That\'s a Set!', 2200);
+
+  if (gameMode === 'vs-computer') {
+    clearComputerTimer();
+    showToast('You found a Set!', 2200);
+  } else {
+    showToast('That\'s a Set!', 2200);
+  }
 
   for (const el of els) el.classList.remove('selected');
 
   scores[0]++;
   updateScoreDisplay();
 
-  flyCardsToScore(els, () => {
+  flyCardsToScore(els, scoreCardEl, () => {
     // If the board has more than 12 cards (extras were added), just remove
     // the matched cards without replacement; otherwise replace them.
     const shouldReplace = board.length <= 12 && deck.length >= 3;
@@ -240,20 +312,23 @@ function handleSuccess(els, indices) {
     ensureSetOnBoard(() => {
       busy = false;
       updateStatus();
-      checkGameOver();
+      if (!checkGameOver() && gameMode === 'vs-computer' && !paused) {
+        scheduleComputerMove();
+      }
     });
   });
 }
 
 // ── Fly-to-Score Animation ────────────────────────────────────
 /**
- * Clone the matched card elements, fly them to the score panel, then call onComplete.
+ * Clone the matched card elements, fly them to a score card, then call onComplete.
  * The originals are made invisible (but hold grid space) during the flight.
  * @param {Element[]} els        The 3 matched card DOM elements.
+ * @param {Element}   targetEl   The score card element to fly toward.
  * @param {Function}  onComplete Called after the animation finishes.
  */
-function flyCardsToScore(els, onComplete) {
-  const targetRect = scoreCardEl.getBoundingClientRect();
+function flyCardsToScore(els, targetEl, onComplete) {
+  const targetRect = targetEl.getBoundingClientRect();
   const targetCX   = targetRect.left + targetRect.width  / 2;
   const targetCY   = targetRect.top  + targetRect.height / 2;
 
@@ -305,12 +380,12 @@ function flyCardsToScore(els, onComplete) {
     setTimeout(() => clone.remove(), cloneRemoveAt);
   });
 
-  // Pulse the score panel as the last clone arrives
+  // Pulse the target score card as the last clone arrives
   const pulseAt = FLY_STAGGER * (els.length - 1) + FLY_DURATION - 60;
   setTimeout(() => {
-    scoreCardEl.classList.add('score-pulse');
-    scoreCardEl.addEventListener('animationend', () => {
-      scoreCardEl.classList.remove('score-pulse');
+    targetEl.classList.add('score-pulse');
+    targetEl.addEventListener('animationend', () => {
+      targetEl.classList.remove('score-pulse');
     }, { once: true });
   }, pulseAt);
 
@@ -387,7 +462,7 @@ function showToast(message, duration = 2800) {
  * Resets automatically when the player completes a Set or starts a new game.
  */
 function showHint() {
-  if (busy) return;
+  if (busy || paused) return;
 
   if (hintStep === 0) {
     // Choose a Set to hint at
@@ -420,55 +495,155 @@ function resetHint() {
   }
 }
 
+// ── Computer AI ──────────────────────────────────────────────
+function scheduleComputerMove() {
+  clearComputerTimer();
+  const [min, max] = DIFFICULTY_RANGES[difficulty];
+  const delay = min + Math.random() * (max - min);
+  computerTimerDeadline = Date.now() + delay;
+  computerTimerHandle = setTimeout(computerTakesSet, delay);
+}
+
+function clearComputerTimer() {
+  if (computerTimerHandle !== null) {
+    clearTimeout(computerTimerHandle);
+    computerTimerHandle = null;
+  }
+  computerTimerDeadline = 0;
+}
+
+function computerTakesSet() {
+  if (busy) {
+    // Animation in progress — retry shortly
+    computerTimerHandle = setTimeout(computerTakesSet, 300);
+    return;
+  }
+
+  const sets = findAllSets(board);
+  if (sets.length === 0) return; // checkGameOver handles the no-set case
+
+  busy = true;
+
+  // Clear any partial player selection
+  selected.forEach(i => boardEl.children[i]?.classList.remove('selected'));
+  selected = [];
+  resetHint();
+
+  const [a, b, c] = sets[0];
+  const indices = [board.indexOf(a), board.indexOf(b), board.indexOf(c)];
+  const els = indices.map(i => boardEl.children[i]);
+
+  const now = Date.now();
+  setTimes.push(now - lastSetTime);
+  lastSetTime = now;
+
+  showToast('Computer found a Set!', 2200);
+  computerScore++;
+  updateScoreDisplay();
+
+  flyCardsToScore(els, scoreComputerCardEl, () => {
+    const shouldReplace = board.length <= 12 && deck.length >= 3;
+
+    if (shouldReplace) {
+      const sorted = [...indices].map((idx, i) => ({ idx, i }))
+                                  .sort((a, b) => b.idx - a.idx);
+      for (const { idx, i } of sorted) {
+        replaceCard(idx, i * 70);
+      }
+    } else {
+      removeCards(indices);
+    }
+
+    ensureSetOnBoard(() => {
+      busy = false;
+      updateStatus();
+      if (!checkGameOver() && !paused) scheduleComputerMove();
+    });
+  });
+}
+
 // ── Game Over ────────────────────────────────────────────────
+/**
+ * Check if the game is over. Returns true if so (and triggers end-game UI).
+ * @returns {boolean}
+ */
 function checkGameOver() {
   if (deck.length === 0 && !hasSet(board)) {
+    clearComputerTimer();
     showGameOver();
+    return true;
   }
+  return false;
 }
 
 function showGameOver() {
   stopTimer();
   modalScores.innerHTML = '';
 
-  const scoreRow = document.createElement('div');
-  scoreRow.className = 'final-score-row';
-  scoreRow.innerHTML = `<span class="winner-label">Player 1</span><span>${scores[0]} ${pluralize(scores[0], 'Set')}</span>`;
-  modalScores.appendChild(scoreRow);
+  if (gameMode === 'vs-computer') {
+    const resultText = scores[0] > computerScore ? 'You win!'
+                     : scores[0] < computerScore ? 'Computer wins!'
+                     : "It's a tie!";
 
-  const timeRow = document.createElement('div');
-  timeRow.className = 'final-score-row';
-  timeRow.innerHTML = `<span class="winner-label">Time</span><span>${finalTimeStr}</span>`;
-  modalScores.appendChild(timeRow);
+    const resultRow = document.createElement('div');
+    resultRow.className = 'final-score-row';
+    resultRow.innerHTML = `<span class="winner-label">Result</span><span>${resultText}</span>`;
+    modalScores.appendChild(resultRow);
 
-  if (setTimes.length > 0) {
-    const avgMs     = setTimes.reduce((a, b) => a + b, 0) / setTimes.length;
-    const fastestMs = Math.min(...setTimes);
+    const p1Row = document.createElement('div');
+    p1Row.className = 'final-score-row';
+    p1Row.innerHTML = `<span class="winner-label">Player 1</span><span>${scores[0]} ${pluralize(scores[0], 'Set')}</span>`;
+    modalScores.appendChild(p1Row);
 
-    const label = document.createElement('p');
-    label.className = 'set-times-label';
-    label.textContent = 'Set Times';
-    modalScores.appendChild(label);
+    const cpuRow = document.createElement('div');
+    cpuRow.className = 'final-score-row';
+    cpuRow.innerHTML = `<span class="winner-label">Computer</span><span>${computerScore} ${pluralize(computerScore, 'Set')}</span>`;
+    modalScores.appendChild(cpuRow);
 
-    const list = document.createElement('div');
-    list.className = 'set-times-breakdown';
-    setTimes.forEach((ms, i) => {
-      const row = document.createElement('div');
-      row.className = 'set-time-row';
-      row.innerHTML = `<span>Set ${i + 1}</span><span>${formatTime(ms)}</span>`;
-      list.appendChild(row);
-    });
-    modalScores.appendChild(list);
+    const timeRow = document.createElement('div');
+    timeRow.className = 'final-score-row';
+    timeRow.innerHTML = `<span class="winner-label">Time</span><span>${finalTimeStr}</span>`;
+    modalScores.appendChild(timeRow);
+  } else {
+    const scoreRow = document.createElement('div');
+    scoreRow.className = 'final-score-row';
+    scoreRow.innerHTML = `<span class="winner-label">Player 1</span><span>${scores[0]} ${pluralize(scores[0], 'Set')}</span>`;
+    modalScores.appendChild(scoreRow);
 
-    const avgRow = document.createElement('div');
-    avgRow.className = 'final-score-row';
-    avgRow.innerHTML = `<span class="winner-label">Avg / Set</span><span>${formatTime(avgMs)}</span>`;
-    modalScores.appendChild(avgRow);
+    const timeRow = document.createElement('div');
+    timeRow.className = 'final-score-row';
+    timeRow.innerHTML = `<span class="winner-label">Time</span><span>${finalTimeStr}</span>`;
+    modalScores.appendChild(timeRow);
 
-    const fastRow = document.createElement('div');
-    fastRow.className = 'final-score-row';
-    fastRow.innerHTML = `<span class="winner-label">Fastest</span><span>${formatTime(fastestMs)}</span>`;
-    modalScores.appendChild(fastRow);
+    if (setTimes.length > 0) {
+      const avgMs     = setTimes.reduce((a, b) => a + b, 0) / setTimes.length;
+      const fastestMs = Math.min(...setTimes);
+
+      const label = document.createElement('p');
+      label.className = 'set-times-label';
+      label.textContent = 'Set Times';
+      modalScores.appendChild(label);
+
+      const list = document.createElement('div');
+      list.className = 'set-times-breakdown';
+      setTimes.forEach((ms, i) => {
+        const row = document.createElement('div');
+        row.className = 'set-time-row';
+        row.innerHTML = `<span>Set ${i + 1}</span><span>${formatTime(ms)}</span>`;
+        list.appendChild(row);
+      });
+      modalScores.appendChild(list);
+
+      const avgRow = document.createElement('div');
+      avgRow.className = 'final-score-row';
+      avgRow.innerHTML = `<span class="winner-label">Avg / Set</span><span>${formatTime(avgMs)}</span>`;
+      modalScores.appendChild(avgRow);
+
+      const fastRow = document.createElement('div');
+      fastRow.className = 'final-score-row';
+      fastRow.innerHTML = `<span class="winner-label">Fastest</span><span>${formatTime(fastestMs)}</span>`;
+      modalScores.appendChild(fastRow);
+    }
   }
 
   modalOverlay.classList.remove('hidden');
@@ -477,6 +652,9 @@ function showGameOver() {
 // ── UI Updates ────────────────────────────────────────────────
 function updateScoreDisplay() {
   scoreP1El.textContent = scores[0];
+  if (gameMode === 'vs-computer') {
+    scoreComputerEl.textContent = computerScore;
+  }
 }
 
 function updateStatus() {
@@ -512,8 +690,48 @@ function stopTimer() {
   timerInterval = null;
 }
 
+// ── Pause / Resume ────────────────────────────────────────────
+function pauseGame() {
+  if (paused || !timerInterval) return; // already paused or no game in progress
+  paused = true;
+
+  // Freeze the timer
+  pausedElapsed = Date.now() - timerStart;
+  clearInterval(timerInterval);
+  timerInterval = null;
+
+  // Capture remaining computer time, then cancel the timer
+  if (gameMode === 'vs-computer' && computerTimerDeadline > 0) {
+    computerPauseRemaining = Math.max(0, computerTimerDeadline - Date.now());
+    clearComputerTimer();
+  }
+
+  pauseOverlay.classList.remove('hidden');
+}
+
+function resumeGame() {
+  if (!paused) return;
+  paused = false;
+
+  // Resume the timer from where it left off
+  timerStart = Date.now() - pausedElapsed;
+  timerInterval = setInterval(() => {
+    timerDisplayEl.textContent = formatTime(Date.now() - timerStart);
+  }, 1000);
+
+  // Reschedule the computer with its remaining time
+  if (gameMode === 'vs-computer' && computerPauseRemaining > 0) {
+    computerTimerDeadline = Date.now() + computerPauseRemaining;
+    computerTimerHandle = setTimeout(computerTakesSet, computerPauseRemaining);
+    computerPauseRemaining = 0;
+  }
+
+  pauseOverlay.classList.add('hidden');
+}
+
 // ── All Sets Overlay ──────────────────────────────────────────
 function showSetsOverlay() {
+  if (paused) return;
   const sets = findAllSets(board);
   setsOverlayList.innerHTML = '';
 
@@ -550,17 +768,39 @@ function closeSetsOverlay() {
 }
 
 // ── Event Wiring ─────────────────────────────────────────────
-btnNewGame.addEventListener('click', initGame);
-btnPlayAgain.addEventListener('click', initGame);
+btnNewGame.addEventListener('click', showModeModal);
+btnPlayAgain.addEventListener('click', showModeModal);
 btnHint.addEventListener('click', showHint);
 btnShowSets.addEventListener('click', showSetsOverlay);
 btnCloseSets.addEventListener('click', closeSetsOverlay);
+
+btnSolo.addEventListener('click', () => {
+  gameMode = 'solo';
+  startGame();
+});
+
+btnVsComputer.addEventListener('click', showDifficultyModal);
+
+btnBackToMode.addEventListener('click', showModeModal);
+
+document.querySelectorAll('.difficulty-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    gameMode   = 'vs-computer';
+    difficulty = btn.dataset.difficulty;
+    startGame();
+  });
+});
+
+btnPause.addEventListener('click', pauseGame);
+btnResume.addEventListener('click', resumeGame);
+
 setsOverlay.addEventListener('pointerdown', e => {
   if (e.target === setsOverlay) closeSetsOverlay();
 });
 document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && paused) { resumeGame(); return; }
   if (e.key === 'Escape' && !setsOverlay.classList.contains('hidden')) closeSetsOverlay();
 });
 
 // ── Start ────────────────────────────────────────────────────
-initGame();
+showModeModal();

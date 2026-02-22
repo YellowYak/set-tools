@@ -313,20 +313,27 @@ a {
    Score Panel
    ============================================================ */
 .score-panel {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   gap: 12px;
-  flex-wrap: wrap;
   margin-bottom: 20px;
 }
 
 .score-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   background: rgba(0,0,0,0.2);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 10px;
   padding: 10px 20px;
-  min-width: 120px;
+  min-width: 100px;
   text-align: center;
 }
+
+#score-p1-card       { justify-self: start; }
+#score-timer-card    { justify-self: center; }
+#score-computer-card { justify-self: end; }
 
 .score-card .player-name {
   font-size: 0.72rem;
@@ -334,6 +341,15 @@ a {
   text-transform: uppercase;
   letter-spacing: 1.5px;
   color: #88bb80;
+  margin-bottom: 2px;
+}
+
+.difficulty-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #a8c8a0;
   margin-bottom: 4px;
 }
 
@@ -421,8 +437,16 @@ a {
   padding: 20px;
 }
 
+.hidden {
+  display: none;
+}
+
 .modal-overlay.hidden {
   display: none;
+}
+
+#pause-overlay {
+  background: var(--bg-table);
 }
 
 .modal {
@@ -492,6 +516,26 @@ a {
   font-size: 0.85rem;
   color: #d8efd4;
   font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   Mode & Difficulty Selection Modals
+   ============================================================ */
+.mode-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.difficulty-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.difficulty-btn {
+  width: 100%;
 }
 
 /* ============================================================
