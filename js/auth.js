@@ -19,7 +19,7 @@ import {
 // Replace each "REPLACE_WITH_..." value with your actual Firebase project values.
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAOXMwyJrKx4S8vfn8xgnQS3bDd6kM-gl0",
+  apiKey: "AIzaSyCDxnbpchJomX9IPvz4ZQmuF6LzXTStPDU",
   authDomain: "set-card-game-ddd65.firebaseapp.com",
   projectId: "set-card-game-ddd65",
   storageBucket: "set-card-game-ddd65.firebasestorage.app",
