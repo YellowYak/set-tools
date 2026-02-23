@@ -5,10 +5,10 @@
  * The full deck has 81 unique cards (3^4 combinations).
  */
 
-export const COLORS  = ['red', 'green', 'purple'];
-export const SHAPES  = ['oval', 'diamond', 'squiggle'];
-export const COUNTS  = [1, 2, 3];
-export const FILLS   = ['solid', 'striped', 'open'];
+const COLORS  = ['red', 'green', 'purple'];
+const SHAPES  = ['oval', 'diamond', 'squiggle'];
+const COUNTS  = [1, 2, 3];
+const FILLS   = ['solid', 'striped', 'open'];
 
 /**
  * Generate all 81 unique Set cards.

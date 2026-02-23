@@ -88,7 +88,7 @@ A **Set** is any three cards where, for each of the four features, the values ac
 ├── js/
 │   ├── deck.js             Card data model, createDeck(), shuffle()
 │   ├── set-logic.js        isSet(), findAllSets(), hasSet()
-│   ├── card-render.js      createCardEl() — DOM card builder
+│   ├── card-render.js      createCardEl(), renderSetList() — DOM card builders
 │   ├── play.js             Game loop, animations, hint system
 │   └── solve.js            Board builder and solver UI
 └── assets/
