@@ -4,6 +4,12 @@ A standalone browser implementation of the card game **Set**, built with vanilla
 
 ## Playing
 
+### Online
+
+Live demo available at https://yellowyak.github.io/set-tools/
+
+### Locally
+
 Open `index.html` in a browser. Because the game uses ES6 modules, it must be served over HTTP rather than opened as a `file://` URL. A one-liner from the project root works fine:
 
 ```bash
