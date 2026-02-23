@@ -44,3 +44,18 @@ solve.js ──┼──► deck.js        (card data model: createDeck, shuffle
 - All styling lives in `css/style.css`. Card dimensions scale via CSS custom properties at three breakpoints.
 - Input uses `pointerdown` (not `click`) to handle both mouse and touch uniformly; `e.preventDefault()` suppresses the synthetic mouse event on touch devices.
 - `set-logic.js` has no DOM dependencies and can be tested in isolation with Node.js if needed.
+
+## UI/Animation Guidelines
+
+After completing feature implementations, always run a visual check by describing what the user should see — especially for animations, styling, and layout changes. Flag if cloned/hidden elements might cause visual glitches.
+
+## Git Workflow
+
+When asked to commit and push, always:
+
+1) git add relevant files,
+2) write a descriptive commit message,
+3) push to current branch,
+4) report the commit hash.
+
+If a PR is requested, create it immediately after pushing.
