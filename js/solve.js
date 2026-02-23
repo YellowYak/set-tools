@@ -8,7 +8,7 @@
 
 import { createDeck, shuffle, pluralize } from './deck.js';
 import { findAllSets } from './set-logic.js';
-import { createCardEl } from './card-render.js';
+import { createCardEl, renderSetList } from './card-render.js';
 
 // ── DOM References ───────────────────────────────────────────
 const solveBoardEl   = document.getElementById('solve-board');
@@ -64,9 +64,7 @@ function toggleCardOnBoard(deckIdx) {
   } else {
     boardIndices.add(deckIdx);
   }
-  renderBoard();
-  updatePickerHighlights();
-  clearResults();
+  syncBoardUI();
 }
 
 function renderBoard() {
@@ -100,9 +98,7 @@ function updatePickerHighlights() {
 
 function clearBoard() {
   boardIndices.clear();
-  renderBoard();
-  updatePickerHighlights();
-  clearResults();
+  syncBoardUI();
 }
 
 function dealRandom() {
@@ -111,9 +107,7 @@ function dealRandom() {
   for (let i = 0; i < Math.min(12, shuffled.length); i++) {
     boardIndices.add(shuffled[i]);
   }
-  renderBoard();
-  updatePickerHighlights();
-  clearResults();
+  syncBoardUI();
 }
 
 // ── Set finder ────────────────────────────────────────────────
@@ -134,30 +128,19 @@ function findAndDisplaySets() {
     return;
   }
 
-  sets.forEach((triplet, i) => {
-    const item = document.createElement('div');
-    item.className = 'set-result-item';
-
-    const label = document.createElement('div');
-    label.className = 'set-number';
-    label.textContent = `Set ${i + 1} of ${sets.length}`;
-    item.appendChild(label);
-
-    const cardsRow = document.createElement('div');
-    cardsRow.className = 'set-result-cards';
-
-    for (const card of triplet) {
-      cardsRow.appendChild(createCardEl(card));
-    }
-
-    item.appendChild(cardsRow);
-    setsResultList.appendChild(item);
-  });
+  renderSetList(sets, setsResultList);
 }
 
 function clearResults() {
   resultsLabel.style.display = 'none';
   setsResultList.innerHTML = '';
+}
+
+/** Sync all board-dependent UI after any change to boardIndices. */
+function syncBoardUI() {
+  renderBoard();
+  updatePickerHighlights();
+  clearResults();
 }
 
 // ── Event Wiring ──────────────────────────────────────────────

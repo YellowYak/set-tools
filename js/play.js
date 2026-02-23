@@ -5,7 +5,7 @@
  *   deck             — remaining undealt cards
  *   board            — cards currently visible (parallel array to DOM children of #board)
  *   selected         — indices (into board) of currently selected cards (max 3)
- *   scores           — array of player scores (currently single player)
+ *   score            — player 1's sets found
  *   busy             — true while an animation is running (blocks new selections)
  *   gameMode         — 'solo' | 'vs-computer'
  *   difficulty       — 'easy' | 'medium' | 'hard' | 'genius'
@@ -15,12 +15,12 @@
 
 import { createDeck, shuffle, pluralize } from './deck.js';
 import { isSet, findAllSets, hasSet } from './set-logic.js';
-import { createCardEl } from './card-render.js';
+import { createCardEl, renderSetList } from './card-render.js';
 
 // ── DOM References ──────────────────────────────────────────
 const boardEl            = document.getElementById('board');
 const scoreP1El          = document.getElementById('score-p1');
-const scoreCardEl        = document.querySelector('.score-card');
+const scoreCardEl        = document.getElementById('score-p1-card');
 const scoreComputerCardEl = document.getElementById('score-computer-card');
 const scoreComputerEl    = document.getElementById('score-computer');
 const statusEl           = document.getElementById('game-status');
@@ -47,7 +47,7 @@ const btnBackToMode      = document.getElementById('btn-back-to-mode');
 let deck     = [];
 let board    = [];   // card objects on the board
 let selected = [];   // indices into board[]
-let scores   = [0];  // one entry per player
+let score    = 0;
 let busy     = false;
 
 // Mode & computer state
@@ -103,7 +103,7 @@ function startGame() {
   deck          = shuffle(createDeck());
   board         = [];
   selected      = [];
-  scores        = [0];
+  score         = 0;
   computerScore = 0;
   busy          = false;
 
@@ -186,6 +186,21 @@ function removeCards(indices) {
   for (const idx of sorted) {
     board.splice(idx, 1);
     boardEl.children[idx].remove();
+  }
+}
+
+/**
+ * After a Set is matched, replace the three slots in-place (if the board has
+ * ≤12 cards and the deck has cards remaining) or simply remove them.
+ * @param {number[]} indices  Three board indices of the matched cards.
+ */
+function replaceOrRemoveCards(indices) {
+  if (board.length <= 12 && deck.length >= 3) {
+    const sorted = [...indices].map((idx, i) => ({ idx, i }))
+                               .sort((a, b) => b.idx - a.idx);
+    for (const { idx, i } of sorted) replaceCard(idx, i * 70);
+  } else {
+    removeCards(indices);
   }
 }
 
@@ -287,25 +302,13 @@ function handleSuccess(els, indices) {
 
   for (const el of els) el.classList.remove('selected');
 
-  scores[0]++;
+  score++;
   updateScoreDisplay();
 
   flyCardsToScore(els, scoreCardEl, () => {
     // If the board has more than 12 cards (extras were added), just remove
     // the matched cards without replacement; otherwise replace them.
-    const shouldReplace = board.length <= 12 && deck.length >= 3;
-
-    if (shouldReplace) {
-      // Replace in-place high→low so lower indices stay stable.
-      // Stagger deal-in delays to match the 3 replacement slots.
-      const sorted = [...indices].map((idx, i) => ({ idx, i }))
-                                 .sort((a, b) => b.idx - a.idx);
-      for (const { idx, i } of sorted) {
-        replaceCard(idx, i * 70);
-      }
-    } else {
-      removeCards(indices);
-    }
+    replaceOrRemoveCards(indices);
 
     selected = [];
 
@@ -542,17 +545,7 @@ function computerTakesSet() {
   updateScoreDisplay();
 
   flyCardsToScore(els, scoreComputerCardEl, () => {
-    const shouldReplace = board.length <= 12 && deck.length >= 3;
-
-    if (shouldReplace) {
-      const sorted = [...indices].map((idx, i) => ({ idx, i }))
-                                  .sort((a, b) => b.idx - a.idx);
-      for (const { idx, i } of sorted) {
-        replaceCard(idx, i * 70);
-      }
-    } else {
-      removeCards(indices);
-    }
+    replaceOrRemoveCards(indices);
 
     ensureSetOnBoard(() => {
       busy = false;
@@ -581,8 +574,8 @@ function showGameOver() {
   modalScores.innerHTML = '';
 
   if (gameMode === 'vs-computer') {
-    const resultText = scores[0] > computerScore ? 'You win!'
-                     : scores[0] < computerScore ? 'Computer wins!'
+    const resultText = score > computerScore ? 'You win!'
+                     : score < computerScore ? 'Computer wins!'
                      : "It's a tie!";
 
     const resultRow = document.createElement('div');
@@ -592,7 +585,7 @@ function showGameOver() {
 
     const p1Row = document.createElement('div');
     p1Row.className = 'final-score-row';
-    p1Row.innerHTML = `<span class="winner-label">Player 1</span><span>${scores[0]} ${pluralize(scores[0], 'Set')}</span>`;
+    p1Row.innerHTML = `<span class="winner-label">Player 1</span><span>${score} ${pluralize(score, 'Set')}</span>`;
     modalScores.appendChild(p1Row);
 
     const cpuRow = document.createElement('div');
@@ -607,7 +600,7 @@ function showGameOver() {
   } else {
     const scoreRow = document.createElement('div');
     scoreRow.className = 'final-score-row';
-    scoreRow.innerHTML = `<span class="winner-label">Player 1</span><span>${scores[0]} ${pluralize(scores[0], 'Set')}</span>`;
+    scoreRow.innerHTML = `<span class="winner-label">Player 1</span><span>${score} ${pluralize(score, 'Set')}</span>`;
     modalScores.appendChild(scoreRow);
 
     const timeRow = document.createElement('div');
@@ -651,7 +644,7 @@ function showGameOver() {
 
 // ── UI Updates ────────────────────────────────────────────────
 function updateScoreDisplay() {
-  scoreP1El.textContent = scores[0];
+  scoreP1El.textContent = score;
   if (gameMode === 'vs-computer') {
     scoreComputerEl.textContent = computerScore;
   }
@@ -672,15 +665,19 @@ function formatTime(ms) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+function startTimerInterval() {
+  timerInterval = setInterval(() => {
+    timerDisplayEl.textContent = formatTime(Date.now() - timerStart);
+  }, 1000);
+}
+
 function startTimer() {
   clearInterval(timerInterval);
   timerStart = Date.now();
   lastSetTime = timerStart;
   setTimes = [];
   timerDisplayEl.textContent = '0:00';
-  timerInterval = setInterval(() => {
-    timerDisplayEl.textContent = formatTime(Date.now() - timerStart);
-  }, 1000);
+  startTimerInterval();
 }
 
 function stopTimer() {
@@ -715,9 +712,7 @@ function resumeGame() {
 
   // Resume the timer from where it left off
   timerStart = Date.now() - pausedElapsed;
-  timerInterval = setInterval(() => {
-    timerDisplayEl.textContent = formatTime(Date.now() - timerStart);
-  }, 1000);
+  startTimerInterval();
 
   // Reschedule the computer with its remaining time
   if (gameMode === 'vs-computer' && computerPauseRemaining > 0) {
@@ -741,23 +736,7 @@ function showSetsOverlay() {
     msg.textContent = 'No Sets on the current board.';
     setsOverlayList.appendChild(msg);
   } else {
-    sets.forEach((triplet, i) => {
-      const item = document.createElement('div');
-      item.className = 'set-result-item';
-
-      const label = document.createElement('div');
-      label.className = 'set-number';
-      label.textContent = `Set ${i + 1} of ${sets.length}`;
-      item.appendChild(label);
-
-      const cardsRow = document.createElement('div');
-      cardsRow.className = 'set-result-cards';
-      for (const card of triplet) {
-        cardsRow.appendChild(createCardEl(card));
-      }
-      item.appendChild(cardsRow);
-      setsOverlayList.appendChild(item);
-    });
+    renderSetList(sets, setsOverlayList);
   }
 
   setsOverlay.classList.remove('hidden');

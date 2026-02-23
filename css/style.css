@@ -441,10 +441,6 @@ a {
   display: none;
 }
 
-.modal-overlay.hidden {
-  display: none;
-}
-
 #pause-overlay {
   background: var(--bg-table);
 }
