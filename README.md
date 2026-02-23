@@ -44,6 +44,14 @@ A **Set** is any three cards where, for each of the four features, the values ac
 
 ## Features
 
+### Authentication (all pages)
+- **Sign In** button in the nav on every page — anonymous play is always available with no account required
+- **Google Sign-In** — one-click OAuth via Google
+- **Email / Password** — create an account or sign in with an email address
+- Signed-in users see their initial in a circular avatar; clicking it opens a dropdown with their name and a Sign Out option
+- **Forgot password** — enter your email on the Sign In tab and click the link to receive a reset email
+- Auth state persists across page navigations and browser sessions (managed by Firebase)
+
 ### Play page
 
 **Game modes** — chosen at the start of every game:
@@ -96,14 +104,16 @@ A **Set** is any three cards where, for each of the four features, the values ac
 │   ├── set-logic.js        isSet(), findAllSets(), hasSet()
 │   ├── card-render.js      createCardEl(), renderSetList() — DOM card builders
 │   ├── play.js             Game loop, animations, hint system
-│   └── solve.js            Board builder and solver UI
+│   ├── solve.js            Board builder and solver UI
+│   └── auth.js             Firebase Authentication — sign-in widget and modal
 └── assets/
     └── set-card-prototype.html   Visual reference for SVG shapes and fills
 ```
 
 ## Technical Notes
 
-- **No dependencies** — vanilla ES6 modules (`type="module"`), no npm, no build step
+- **Firebase Authentication** — loaded via the official Firebase CDN ESM; no bundler needed (`import` directly from `https://www.gstatic.com/firebasejs/...`)
+- **No other dependencies** — vanilla ES6 modules (`type="module"`), no npm, no build step
 - **SVG card rendering** — shapes (`#oval`, `#diamond`, `#squiggle`) and hatch fill patterns (`#hatch-red`, `#hatch-green`, `#hatch-purple`) are defined once per page in an inline `<svg><defs>` block; cards reference them with `<use href="#shape">`
 - **Card DOM structure** — each card is a `<div class="card">` with `data-color`, `data-shape`, `data-count`, `data-fill` attributes and an `aria-label` (e.g. `"2 red striped ovals"`)
 - **Animations** — CSS keyframes for deal-in (`fill-mode: both` prevents flash-before-animation); JS clone trick for fly-to-score (snapshot position → fixed-position clone → CSS transition → remove)
