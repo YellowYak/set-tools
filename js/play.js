@@ -105,6 +105,13 @@ let pausedElapsed         = 0; // ms elapsed when paused
 let computerTimerDeadline = 0; // Date.now() + delay when computer timer was scheduled
 let computerPauseRemaining = 0; // ms left on computer timer when paused
 
+// ── Animation Timing Constants (ms) ─────────────────────────
+const DEAL_STAGGER_MS    = 80;   // delay between successive cards dealing in
+const REPLACE_STAGGER_MS = 70;   // delay between successive cards replacing
+const ERROR_FLASH_MS     = 650;  // error flash animation duration
+const COMPUTER_RETRY_MS  = 300;  // retry delay when busy blocks a computer move
+const EXTRA_DEAL_PAUSE_MS = 3000; // pause before dealing extra cards (no set on board)
+
 // ── Difficulty Ranges (ms) ──────────────────────────────────
 const DIFFICULTY_RANGES = {
   easy:   [10000, 30000],
@@ -192,7 +199,7 @@ function dealCards(n, startDelayMs = 0) {
     el.style.setProperty('--card-rotate', randomRotation());
     el.addEventListener('pointerdown', onCardPointerDown);
     el.addEventListener('keydown', onCardKeyDown);
-    dealInCard(el, startDelayMs + i * 80);
+    dealInCard(el, startDelayMs + i * DEAL_STAGGER_MS);
     boardEl.appendChild(el);
   }
 }
@@ -234,7 +241,7 @@ function replaceOrRemoveCards(indices) {
   if (board.length <= 12 && deck.length >= 3) {
     const sorted = [...indices].map((idx, i) => ({ idx, i }))
                                .sort((a, b) => b.idx - a.idx);
-    for (const { idx, i } of sorted) replaceCard(idx, i * 70);
+    for (const { idx, i } of sorted) replaceCard(idx, i * REPLACE_STAGGER_MS);
   } else {
     removeCards(indices);
   }
@@ -266,7 +273,7 @@ function ensureSetOnBoard(onDone = null, notify = true) {
     extraCardsDealt++;
     dealCards(3, 0);
     ensureSetOnBoard(onDone, true);
-  }, 3000);
+  }, EXTRA_DEAL_PAUSE_MS);
 }
 
 // ── Selection & Validation ──────────────────────────────────
@@ -311,12 +318,11 @@ function toggleSelect(idx) {
 }
 
 function validateSelection() {
-  const [i, j, k] = selected;
-  const cards = [board[i], board[j], board[k]];
-  const els   = [boardEl.children[i], boardEl.children[j], boardEl.children[k]];
+  const cards = selected.map(i => board[i]);
+  const els   = selected.map(i => boardEl.children[i]);
 
   if (isSet(...cards)) {
-    handleSuccess(els, [i, j, k]);
+    handleSuccess(els, selected);
   } else {
     handleError(els);
   }
@@ -348,6 +354,7 @@ function handleSuccess(els, indices) {
     replaceOrRemoveCards(indices);
 
     selected = [];
+    updateStatus();
 
     ensureSetOnBoard(() => {
       busy = false;
@@ -373,9 +380,12 @@ function flyCardsToScore(els, targetEl, onComplete) {
   const targetCY   = targetRect.top  + targetRect.height / 2;
 
   // Stagger: last clone lands at t = FLY_STAGGER * 2 + FLY_DURATION
-  const FLY_DURATION = 350; // ms, CSS transition duration per clone
-  const FLY_STAGGER  = 70;  // ms between each clone launch
-  const TOTAL_MS     = FLY_STAGGER * (els.length - 1) + FLY_DURATION + 40;
+  const FLY_DURATION        = 350; // ms, CSS transition duration per clone
+  const FLY_STAGGER         = 70;  // ms between each clone launch
+  const FLY_CALLBACK_BUFFER = 40;  // ms after last clone lands before onComplete fires
+  const CLONE_CLEANUP_MS    = 20;  // ms after each clone's flight before it's removed
+  const PULSE_LEAD_MS       = 60;  // ms before last clone lands that the score pulse fires
+  const TOTAL_MS = FLY_STAGGER * (els.length - 1) + FLY_DURATION + FLY_CALLBACK_BUFFER;
 
   els.forEach((el, i) => {
     // Snapshot position and clone BEFORE hiding the original so the
@@ -416,12 +426,12 @@ function flyCardsToScore(els, targetEl, onComplete) {
     });
 
     // Clean up clone after its individual flight completes
-    const cloneRemoveAt = FLY_STAGGER * i + FLY_DURATION + 20;
+    const cloneRemoveAt = FLY_STAGGER * i + FLY_DURATION + CLONE_CLEANUP_MS;
     setTimeout(() => clone.remove(), cloneRemoveAt);
   });
 
   // Pulse the target score card as the last clone arrives
-  const pulseAt = FLY_STAGGER * (els.length - 1) + FLY_DURATION - 60;
+  const pulseAt = FLY_STAGGER * (els.length - 1) + FLY_DURATION - PULSE_LEAD_MS;
   setTimeout(() => {
     targetEl.classList.add('score-pulse');
     targetEl.addEventListener('animationend', () => {
@@ -464,7 +474,7 @@ function handleError(els) {
     }
     selected = [];
     busy = false;
-  }, 650);
+  }, ERROR_FLASH_MS);
 }
 
 // ── Toast ─────────────────────────────────────────────────────
@@ -557,7 +567,7 @@ function clearComputerTimer() {
 function computerTakesSet() {
   if (busy) {
     // Animation in progress — retry shortly
-    computerTimerHandle = setTimeout(computerTakesSet, 300);
+    computerTimerHandle = setTimeout(computerTakesSet, COMPUTER_RETRY_MS);
     return;
   }
 
@@ -575,8 +585,7 @@ function computerTakesSet() {
   const indices = [board.indexOf(a), board.indexOf(b), board.indexOf(c)];
   const els = indices.map(i => boardEl.children[i]);
 
-  const now = Date.now();
-  lastSetTime = now;
+  lastSetTime = Date.now();
 
   showToast('Computer found a Set!', 2200);
   computerScore++;
@@ -584,6 +593,7 @@ function computerTakesSet() {
 
   flyCardsToScore(els, scoreComputerCardEl, () => {
     replaceOrRemoveCards(indices);
+    updateStatus();
 
     ensureSetOnBoard(() => {
       busy = false;
@@ -605,6 +615,45 @@ function checkGameOver() {
     return true;
   }
   return false;
+}
+
+/** Append a labeled score row to a container element. */
+function appendScoreRow(container, label, value) {
+  const row = document.createElement('div');
+  row.className = 'final-score-row';
+  row.innerHTML = `<span class="winner-label">${label}</span><span>${value}</span>`;
+  container.appendChild(row);
+}
+
+/**
+ * Append the set-times breakdown section (label, scrollable per-set list,
+ * avg and fastest summary rows) to a container. No-ops if times is empty.
+ * @param {HTMLElement} container
+ * @param {number[]}    times   ms elapsed for each player Set
+ * @param {string}      label   Section heading text
+ */
+function appendSetTimesSection(container, times, label = 'Set Times') {
+  if (times.length === 0) return;
+  const avgMs     = times.reduce((a, b) => a + b, 0) / times.length;
+  const fastestMs = Math.min(...times);
+
+  const labelEl = document.createElement('p');
+  labelEl.className = 'set-times-label';
+  labelEl.textContent = label;
+  container.appendChild(labelEl);
+
+  const list = document.createElement('div');
+  list.className = 'set-times-breakdown';
+  times.forEach((ms, i) => {
+    const row = document.createElement('div');
+    row.className = 'set-time-row';
+    row.innerHTML = `<span>Set ${i + 1}</span><span>${formatTime(ms)}</span>`;
+    list.appendChild(row);
+  });
+  container.appendChild(list);
+
+  appendScoreRow(container, 'Avg / Set', formatTime(avgMs));
+  appendScoreRow(container, 'Fastest',   formatTime(fastestMs));
 }
 
 function showGameOver() {
@@ -664,65 +713,20 @@ function showGameOver() {
                      : score < computerScore ? 'Computer wins!'
                      : "It's a tie!";
 
-    const resultRow = document.createElement('div');
-    resultRow.className = 'final-score-row';
-    resultRow.innerHTML = `<span class="winner-label">Result</span><span>${resultText}</span>`;
-    modalScores.appendChild(resultRow);
+    appendScoreRow(modalScores, 'Result',   resultText);
+    appendScoreRow(modalScores, 'Player 1', `${score} ${pluralize(score, 'Set')}`);
+    appendScoreRow(modalScores, 'Computer', `${computerScore} ${pluralize(computerScore, 'Set')}`);
+    appendScoreRow(modalScores, 'Time',     finalTimeStr);
+    appendScoreRow(modalScores, 'Mistakes', mistakeCount.toString());
 
-    const p1Row = document.createElement('div');
-    p1Row.className = 'final-score-row';
-    p1Row.innerHTML = `<span class="winner-label">Player 1</span><span>${score} ${pluralize(score, 'Set')}</span>`;
-    modalScores.appendChild(p1Row);
-
-    const cpuRow = document.createElement('div');
-    cpuRow.className = 'final-score-row';
-    cpuRow.innerHTML = `<span class="winner-label">Computer</span><span>${computerScore} ${pluralize(computerScore, 'Set')}</span>`;
-    modalScores.appendChild(cpuRow);
-
-    const timeRow = document.createElement('div');
-    timeRow.className = 'final-score-row';
-    timeRow.innerHTML = `<span class="winner-label">Time</span><span>${finalTimeStr}</span>`;
-    modalScores.appendChild(timeRow);
+    appendSetTimesSection(modalScores, playerSetTimes, 'Your Set Times');
   } else {
-    const scoreRow = document.createElement('div');
-    scoreRow.className = 'final-score-row';
-    scoreRow.innerHTML = `<span class="winner-label">Player 1</span><span>${score} ${pluralize(score, 'Set')}</span>`;
-    modalScores.appendChild(scoreRow);
+    appendScoreRow(modalScores, 'Player 1', `${score} ${pluralize(score, 'Set')}`);
+    appendScoreRow(modalScores, 'Time',     finalTimeStr);
+    appendScoreRow(modalScores, 'Hints',    hintsUsed.toString());
+    appendScoreRow(modalScores, 'Mistakes', mistakeCount.toString());
 
-    const timeRow = document.createElement('div');
-    timeRow.className = 'final-score-row';
-    timeRow.innerHTML = `<span class="winner-label">Time</span><span>${finalTimeStr}</span>`;
-    modalScores.appendChild(timeRow);
-
-    if (playerSetTimes.length > 0) {
-      const avgMs     = playerSetTimes.reduce((a, b) => a + b, 0) / playerSetTimes.length;
-      const fastestMs = Math.min(...playerSetTimes);
-
-      const label = document.createElement('p');
-      label.className = 'set-times-label';
-      label.textContent = 'Set Times';
-      modalScores.appendChild(label);
-
-      const list = document.createElement('div');
-      list.className = 'set-times-breakdown';
-      playerSetTimes.forEach((ms, i) => {
-        const row = document.createElement('div');
-        row.className = 'set-time-row';
-        row.innerHTML = `<span>Set ${i + 1}</span><span>${formatTime(ms)}</span>`;
-        list.appendChild(row);
-      });
-      modalScores.appendChild(list);
-
-      const avgRow = document.createElement('div');
-      avgRow.className = 'final-score-row';
-      avgRow.innerHTML = `<span class="winner-label">Avg / Set</span><span>${formatTime(avgMs)}</span>`;
-      modalScores.appendChild(avgRow);
-
-      const fastRow = document.createElement('div');
-      fastRow.className = 'final-score-row';
-      fastRow.innerHTML = `<span class="winner-label">Fastest</span><span>${formatTime(fastestMs)}</span>`;
-      modalScores.appendChild(fastRow);
-    }
+    appendSetTimesSection(modalScores, playerSetTimes);
   }
 
   modalOverlay.classList.remove('hidden');
@@ -738,9 +742,8 @@ function updateScoreDisplay() {
 
 function updateStatus() {
   const remaining = deck.length;
-  const onBoard   = board.length;
   const setCount  = findAllSets(board).length;
-  statusEl.textContent = `${remaining} ${pluralize(remaining, 'card')} left · ${onBoard} on board · ${setCount} ${pluralize(setCount, 'set')} present`;
+  statusEl.textContent = `${remaining} ${pluralize(remaining, 'card')} left · ${setCount} ${pluralize(setCount, 'set')} present`;
 }
 
 // ── Timer ─────────────────────────────────────────────────────

@@ -9,11 +9,11 @@
 import { pluralize } from './deck.js';
 
 /** Hex color values — read from CSS custom properties so style.css is the single source of truth. */
-const _cs = getComputedStyle(document.documentElement);
+const style = getComputedStyle(document.documentElement);
 const COLOR_HEX = {
-  red:    _cs.getPropertyValue('--color-red').trim(),
-  green:  _cs.getPropertyValue('--color-green').trim(),
-  purple: _cs.getPropertyValue('--color-purple').trim(),
+  red:    style.getPropertyValue('--color-red').trim(),
+  green:  style.getPropertyValue('--color-green').trim(),
+  purple: style.getPropertyValue('--color-purple').trim(),
 };
 
 /**
@@ -57,32 +57,6 @@ function ariaLabel(card) {
  * @param {object} card - { color, shape, count, fill }
  * @returns {HTMLElement}
  */
-/**
- * Render a list of Set triplets into a container element.
- * Appends one set-result-item per triplet (does not clear the container first).
- * @param {Array<Array>} sets        - Array of card triplets from findAllSets()
- * @param {HTMLElement}  containerEl - Element to append items into
- */
-export function renderSetList(sets, containerEl) {
-  sets.forEach((triplet, i) => {
-    const item = document.createElement('div');
-    item.className = 'set-result-item';
-
-    const label = document.createElement('div');
-    label.className = 'set-number';
-    label.textContent = `Set ${i + 1} of ${sets.length}`;
-    item.appendChild(label);
-
-    const cardsRow = document.createElement('div');
-    cardsRow.className = 'set-result-cards';
-    for (const card of triplet) {
-      cardsRow.appendChild(createCardEl(card));
-    }
-    item.appendChild(cardsRow);
-    containerEl.appendChild(item);
-  });
-}
-
 export function createCardEl(card) {
   const div = document.createElement('div');
   div.className = 'card';
@@ -112,4 +86,30 @@ export function createCardEl(card) {
   }
 
   return div;
+}
+
+/**
+ * Render a list of Set triplets into a container element.
+ * Appends one set-result-item per triplet (does not clear the container first).
+ * @param {Array<Array>} sets        - Array of card triplets from findAllSets()
+ * @param {HTMLElement}  containerEl - Element to append items into
+ */
+export function renderSetList(sets, containerEl) {
+  sets.forEach((triplet, i) => {
+    const item = document.createElement('div');
+    item.className = 'set-result-item';
+
+    const label = document.createElement('div');
+    label.className = 'set-number';
+    label.textContent = `Set ${i + 1} of ${sets.length}`;
+    item.appendChild(label);
+
+    const cardsRow = document.createElement('div');
+    cardsRow.className = 'set-result-cards';
+    for (const card of triplet) {
+      cardsRow.appendChild(createCardEl(card));
+    }
+    item.appendChild(cardsRow);
+    containerEl.appendChild(item);
+  });
 }

@@ -103,7 +103,7 @@ function clearBoard() {
 
 function dealRandom() {
   boardIndices.clear();
-  const shuffled = shuffle([...Array(81).keys()]); // shuffle indices 0–80
+  const shuffled = shuffle([...Array(allCards.length).keys()]);
   for (let i = 0; i < Math.min(12, shuffled.length); i++) {
     boardIndices.add(shuffled[i]);
   }

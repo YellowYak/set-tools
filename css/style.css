@@ -838,6 +838,13 @@ a {
   word-break: break-all;
 }
 
+.auth-dropdown .btn {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  text-align: center;
+}
+
 /* ============================================================
    Auth Modal
    ============================================================ */
@@ -1091,4 +1098,94 @@ a {
   .card svg {
     height: 26px;
   }
+}
+
+/* ============================================================
+   Profile Page
+   ============================================================ */
+.profile-page {
+  max-width: 480px;
+  margin: 60px auto;
+  padding: 0 20px;
+}
+
+.profile-card {
+  background: rgba(0,0,0,0.2);
+  border-radius: 16px;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+.profile-avatar-large {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #f5e6c8;
+  color: #2d3a1e;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.profile-fields {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.profile-field-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #88bb80;
+  margin-bottom: 6px;
+}
+
+.profile-email-value {
+  font-size: 0.95rem;
+  color: #c0d8bb;
+  padding: 10px 14px;
+  background: rgba(0,0,0,0.15);
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  word-break: break-all;
+}
+
+.profile-name-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.profile-name-row .auth-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-signed-out-card {
+  gap: 20px;
+  color: #a8c8a0;
+  text-align: center;
+}
+
+.profile-divider {
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  margin: 4px 0;
+  width: 100%;
+}
+
+.profile-password-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }

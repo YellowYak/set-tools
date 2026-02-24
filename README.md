@@ -26,6 +26,7 @@ Any static file server will do (VS Code Live Server, `npx serve`, etc.).
 | `index.html` | Landing page with rules summary and navigation |
 | `play.html` | Play the game — single player or vs Computer, full game loop |
 | `solve.html` | Board builder and Set solver — add any cards, find all Sets |
+| `profile.html` | User profile — edit display name, change password (email/password accounts) |
 
 ## The Game
 
@@ -50,6 +51,7 @@ A **Set** is any three cards where, for each of the four features, the values ac
 - **Email / Password** — create an account or sign in with an email address
 - Signed-in users see their initial in a circular avatar; clicking it opens a dropdown with their name and a Sign Out option
 - **Forgot password** — enter your email on the Sign In tab and click the link to receive a reset email
+- **Profile page** — signed-in users can edit their display name; email/password accounts can also change their password (requires re-authentication with the current password)
 - Auth state persists across page navigations and browser sessions (managed by Firebase)
 
 ### Play page
@@ -82,7 +84,7 @@ A **Set** is any three cards where, for each of the four features, the values ac
 - **Pause** — freezes the timer and the computer's countdown; an opaque overlay hides the board. Resume by clicking the Resume button or pressing Escape
 - **Timer** counts up from 0:00 when the game starts and freezes when the game ends
 - Status bar shows cards remaining in deck, cards on board, and Sets currently present
-- Game-over modal declares the winner (vs Computer) or shows per-Set timing stats (single player); includes "← Home" link to return to the landing page without starting a new game
+- Game-over modal shows result and stats for both modes — vs Computer: winner, scores, mistakes, and per-set timing; single player: sets found, time, hints, mistakes, and per-set timing; includes "← Home" link to return to the landing page without starting a new game
 - New Game modal also includes a "← Home" link for easy navigation before a game begins
 - **Game history** — signed-in users have their completed game saved automatically; guests see a gentle "Sign in to save" nudge with a one-click sign-in button. If a guest signs in directly from the game-over modal, the just-completed game is saved retroactively
 
@@ -99,6 +101,7 @@ A **Set** is any three cards where, for each of the four features, the values ac
 ├── index.html              Landing page
 ├── play.html               Game page
 ├── solve.html              Solver page
+├── profile.html            User profile page
 ├── css/
 │   └── style.css           All styles — layout, card states, animations
 ├── js/
@@ -108,6 +111,7 @@ A **Set** is any three cards where, for each of the four features, the values ac
 │   ├── play.js             Game loop, animations, hint system
 │   ├── solve.js            Board builder and solver UI
 │   ├── auth.js             Firebase Authentication — sign-in widget and modal
+│   ├── profile.js          Profile page — display name and password updates
 │   ├── firebase-init.js    Firebase app singleton (shared by auth.js and db.js)
 │   └── db.js               Firestore helpers — saveGame() writes completed game records
 └── assets/
