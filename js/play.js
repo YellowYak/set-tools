@@ -137,7 +137,9 @@ function startGame() {
   computerScore = 0;
   busy          = false;
 
-  // Show or hide the computer score card based on mode
+  // Show or hide controls based on mode
+  btnHint.classList.toggle('hidden', gameMode !== 'solo');
+  btnShowSets.classList.toggle('hidden', gameMode !== 'solo');
   scoreComputerCardEl.classList.toggle('hidden', gameMode !== 'vs-computer');
   document.getElementById('computer-difficulty').textContent =
     gameMode === 'vs-computer' ? difficulty : '';

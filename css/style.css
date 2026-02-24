@@ -1044,6 +1044,20 @@ a {
   color: #f5e6c8;
 }
 
+.modal-home-link {
+  display: block;
+  text-align: center;
+  margin-top: 14px;
+  font-size: 0.8rem;
+  color: rgba(168, 200, 160, 0.4);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.modal-home-link:hover {
+  color: rgba(168, 200, 160, 0.8);
+}
+
 /* ============================================================
    Responsive Tweaks
    ============================================================ */
