@@ -682,6 +682,30 @@ function showGameOver() {
     appendScoreRow(modalScores, 'Player 1', `${score} ${pluralize(score, 'Set')}`);
     appendScoreRow(modalScores, 'Computer', `${computerScore} ${pluralize(computerScore, 'Set')}`);
     appendScoreRow(modalScores, 'Time',     finalTimeStr);
+    appendScoreRow(modalScores, 'Mistakes', mistakeCount.toString());
+
+    if (playerSetTimes.length > 0) {
+      const avgMs     = playerSetTimes.reduce((a, b) => a + b, 0) / playerSetTimes.length;
+      const fastestMs = Math.min(...playerSetTimes);
+
+      const label = document.createElement('p');
+      label.className = 'set-times-label';
+      label.textContent = 'Your Set Times';
+      modalScores.appendChild(label);
+
+      const list = document.createElement('div');
+      list.className = 'set-times-breakdown';
+      playerSetTimes.forEach((ms, i) => {
+        const row = document.createElement('div');
+        row.className = 'set-time-row';
+        row.innerHTML = `<span>Set ${i + 1}</span><span>${formatTime(ms)}</span>`;
+        list.appendChild(row);
+      });
+      modalScores.appendChild(list);
+
+      appendScoreRow(modalScores, 'Avg / Set', formatTime(avgMs));
+      appendScoreRow(modalScores, 'Fastest',   formatTime(fastestMs));
+    }
   } else {
     appendScoreRow(modalScores, 'Player 1', `${score} ${pluralize(score, 'Set')}`);
     appendScoreRow(modalScores, 'Time',     finalTimeStr);
