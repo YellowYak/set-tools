@@ -53,9 +53,9 @@ After completing feature implementations, always run a visual check by describin
 
 When asked to commit and push, always:
 
-1) git add relevant files,
-2) write a descriptive commit message,
-3) push to current branch,
-4) report the commit hash.
+1) `git add` relevant files,
+2) Write a descriptive commit message,
+3) Push to current branch,
+4) Report the commit hash.
 
 If a PR is requested, create it immediately after pushing.

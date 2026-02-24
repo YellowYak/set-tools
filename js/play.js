@@ -16,6 +16,9 @@
 import { createDeck, shuffle, pluralize } from './deck.js';
 import { isSet, findAllSets, hasSet } from './set-logic.js';
 import { createCardEl, renderSetList } from './card-render.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js';
+import { auth } from './firebase-init.js';
+import { saveGame } from './db.js';
 
 // ── DOM References ──────────────────────────────────────────
 const boardEl            = document.getElementById('board');
@@ -67,7 +70,34 @@ let timerStart    = 0;    // Date.now() when current game began
 let timerInterval = null; // setInterval handle, null when stopped
 let finalTimeStr  = '0:00'; // frozen display value after game ends
 let lastSetTime   = 0;    // Date.now() at game start or last Set completion
-let setTimes      = [];   // ms elapsed for each successfully found Set
+let playerSetTimes = [];  // ms elapsed for each Set found by the player
+
+// Stats counters (saved to Firestore on game over)
+let hintsUsed       = 0;  // number of hint card reveals used
+let mistakeCount    = 0;  // number of invalid Set submissions
+let extraCardsDealt = 0;  // number of times 3 extra cards were dealt (no set on board)
+
+// Auth state (kept in sync via onAuthStateChanged subscription below)
+let currentUser      = null;
+let pendingGameRecord = null; // held when game ends as guest; saved on sign-in
+
+onAuthStateChanged(auth, user => {
+  currentUser = user;
+  // If the user signs in while a completed game is waiting to be saved, do it now.
+  if (user && pendingGameRecord) {
+    const record    = pendingGameRecord;
+    pendingGameRecord = null;
+    const nudgeEl   = document.getElementById('modal-save-nudge');
+    if (nudgeEl) nudgeEl.innerHTML = '';
+    saveGame({ ...record, uid: user.uid })
+      .then(() => {
+        if (nudgeEl) {
+          nudgeEl.innerHTML = '<div class="save-nudge save-nudge--saved">✓ Results saved</div>';
+        }
+      })
+      .catch(() => { /* fail silently */ });
+  }
+});
 
 // Pause state
 let paused                = false;
@@ -116,6 +146,10 @@ function startGame() {
   pausedElapsed = 0;
   computerTimerDeadline = 0;
   computerPauseRemaining = 0;
+  hintsUsed = 0;
+  mistakeCount = 0;
+  extraCardsDealt = 0;
+  pendingGameRecord = null;
 
   boardEl.innerHTML = '';
   updateScoreDisplay();
@@ -227,6 +261,7 @@ function ensureSetOnBoard(onDone = null, notify = true) {
   // Notify path: pause so the player can read the toast before cards appear.
   setTimeout(() => {
     showToast('No sets on the board — adding 3 more cards…');
+    extraCardsDealt++;
     dealCards(3, 0);
     ensureSetOnBoard(onDone, true);
   }, 3000);
@@ -288,7 +323,7 @@ function validateSelection() {
 // ── Success ─────────────────────────────────────────────────
 function handleSuccess(els, indices) {
   const now = Date.now();
-  setTimes.push(now - lastSetTime);
+  playerSetTimes.push(now - lastSetTime);
   lastSetTime = now;
   busy = true;
   resetHint();
@@ -413,6 +448,7 @@ function dealInCard(el, delayMs) {
 // ── Error ────────────────────────────────────────────────────
 function handleError(els) {
   busy = true;
+  mistakeCount++;
   showToast('Not a Set — try again.', 2200);
 
   for (const el of els) {
@@ -479,6 +515,7 @@ function showHint() {
     const idx = hintSetIndices[hintStep];
     boardEl.children[idx]?.classList.add('hint');
     hintStep++;
+    hintsUsed++;
 
     const remaining = 3 - hintStep;
     showToast(remaining > 0
@@ -537,7 +574,6 @@ function computerTakesSet() {
   const els = indices.map(i => boardEl.children[i]);
 
   const now = Date.now();
-  setTimes.push(now - lastSetTime);
   lastSetTime = now;
 
   showToast('Computer found a Set!', 2200);
@@ -571,6 +607,54 @@ function checkGameOver() {
 
 function showGameOver() {
   stopTimer();
+
+  // ── Persist game record to Firestore ────────────────────────────────────
+  const durationMs = Date.now() - timerStart;
+  const gameRecord = {
+    uid:             currentUser ? currentUser.uid : null,
+    gameMode,
+    difficulty:      gameMode === 'vs-computer' ? difficulty : null,
+    durationMs,
+    playerSets:      score,
+    computerSets:    gameMode === 'vs-computer' ? computerScore : null,
+    outcome:         gameMode === 'vs-computer'
+                       ? (score > computerScore ? 'win' : score < computerScore ? 'loss' : 'tie')
+                       : null,
+    hintsUsed,
+    mistakeCount,
+    extraCardsDealt,
+    setTimesMs:      [...playerSetTimes],
+    avgSetTimeMs:    playerSetTimes.length
+                       ? Math.round(playerSetTimes.reduce((a, b) => a + b, 0) / playerSetTimes.length)
+                       : null,
+    fastestSetMs:    playerSetTimes.length ? Math.min(...playerSetTimes) : null,
+    slowestSetMs:    playerSetTimes.length ? Math.max(...playerSetTimes) : null,
+  };
+
+  const nudgeEl = document.getElementById('modal-save-nudge');
+  nudgeEl.innerHTML = '';
+
+  if (currentUser) {
+    pendingGameRecord = null;
+    saveGame(gameRecord)
+      .then(() => {
+        nudgeEl.innerHTML = '<div class="save-nudge save-nudge--saved">✓ Results saved</div>';
+      })
+      .catch(() => { /* fail silently */ });
+  } else {
+    pendingGameRecord = gameRecord; // saved by onAuthStateChanged if user signs in
+    nudgeEl.innerHTML = `
+      <div class="save-nudge">
+        Sign in to save your results
+        <button class="save-nudge-btn" id="btn-save-sign-in">Sign In</button>
+      </div>`;
+    document.getElementById('btn-save-sign-in')
+      .addEventListener('pointerdown', e => {
+        e.preventDefault();
+        document.dispatchEvent(new CustomEvent('open-auth-modal'));
+      });
+  }
+
   modalScores.innerHTML = '';
 
   if (gameMode === 'vs-computer') {
@@ -608,9 +692,9 @@ function showGameOver() {
     timeRow.innerHTML = `<span class="winner-label">Time</span><span>${finalTimeStr}</span>`;
     modalScores.appendChild(timeRow);
 
-    if (setTimes.length > 0) {
-      const avgMs     = setTimes.reduce((a, b) => a + b, 0) / setTimes.length;
-      const fastestMs = Math.min(...setTimes);
+    if (playerSetTimes.length > 0) {
+      const avgMs     = playerSetTimes.reduce((a, b) => a + b, 0) / playerSetTimes.length;
+      const fastestMs = Math.min(...playerSetTimes);
 
       const label = document.createElement('p');
       label.className = 'set-times-label';
@@ -619,7 +703,7 @@ function showGameOver() {
 
       const list = document.createElement('div');
       list.className = 'set-times-breakdown';
-      setTimes.forEach((ms, i) => {
+      playerSetTimes.forEach((ms, i) => {
         const row = document.createElement('div');
         row.className = 'set-time-row';
         row.innerHTML = `<span>Set ${i + 1}</span><span>${formatTime(ms)}</span>`;
@@ -675,7 +759,7 @@ function startTimer() {
   clearInterval(timerInterval);
   timerStart = Date.now();
   lastSetTime = timerStart;
-  setTimes = [];
+  playerSetTimes = [];
   timerDisplayEl.textContent = '0:00';
   startTimerInterval();
 }
