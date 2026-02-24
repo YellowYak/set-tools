@@ -106,10 +106,11 @@ let computerTimerDeadline = 0; // Date.now() + delay when computer timer was sch
 let computerPauseRemaining = 0; // ms left on computer timer when paused
 
 // ── Animation Timing Constants (ms) ─────────────────────────
-const DEAL_STAGGER_MS    = 80;  // delay between successive cards dealing in
-const REPLACE_STAGGER_MS = 70;  // delay between successive cards replacing
-const ERROR_FLASH_MS     = 650; // error flash animation duration
-const COMPUTER_RETRY_MS  = 300; // retry delay when busy blocks a computer move
+const DEAL_STAGGER_MS    = 80;   // delay between successive cards dealing in
+const REPLACE_STAGGER_MS = 70;   // delay between successive cards replacing
+const ERROR_FLASH_MS     = 650;  // error flash animation duration
+const COMPUTER_RETRY_MS  = 300;  // retry delay when busy blocks a computer move
+const EXTRA_DEAL_PAUSE_MS = 3000; // pause before dealing extra cards (no set on board)
 
 // ── Difficulty Ranges (ms) ──────────────────────────────────
 const DIFFICULTY_RANGES = {
@@ -272,7 +273,7 @@ function ensureSetOnBoard(onDone = null, notify = true) {
     extraCardsDealt++;
     dealCards(3, 0);
     ensureSetOnBoard(onDone, true);
-  }, 3000);
+  }, EXTRA_DEAL_PAUSE_MS);
 }
 
 // ── Selection & Validation ──────────────────────────────────
@@ -379,9 +380,12 @@ function flyCardsToScore(els, targetEl, onComplete) {
   const targetCY   = targetRect.top  + targetRect.height / 2;
 
   // Stagger: last clone lands at t = FLY_STAGGER * 2 + FLY_DURATION
-  const FLY_DURATION = 350; // ms, CSS transition duration per clone
-  const FLY_STAGGER  = 70;  // ms between each clone launch
-  const TOTAL_MS     = FLY_STAGGER * (els.length - 1) + FLY_DURATION + 40;
+  const FLY_DURATION        = 350; // ms, CSS transition duration per clone
+  const FLY_STAGGER         = 70;  // ms between each clone launch
+  const FLY_CALLBACK_BUFFER = 40;  // ms after last clone lands before onComplete fires
+  const CLONE_CLEANUP_MS    = 20;  // ms after each clone's flight before it's removed
+  const PULSE_LEAD_MS       = 60;  // ms before last clone lands that the score pulse fires
+  const TOTAL_MS = FLY_STAGGER * (els.length - 1) + FLY_DURATION + FLY_CALLBACK_BUFFER;
 
   els.forEach((el, i) => {
     // Snapshot position and clone BEFORE hiding the original so the
@@ -422,12 +426,12 @@ function flyCardsToScore(els, targetEl, onComplete) {
     });
 
     // Clean up clone after its individual flight completes
-    const cloneRemoveAt = FLY_STAGGER * i + FLY_DURATION + 20;
+    const cloneRemoveAt = FLY_STAGGER * i + FLY_DURATION + CLONE_CLEANUP_MS;
     setTimeout(() => clone.remove(), cloneRemoveAt);
   });
 
   // Pulse the target score card as the last clone arrives
-  const pulseAt = FLY_STAGGER * (els.length - 1) + FLY_DURATION - 60;
+  const pulseAt = FLY_STAGGER * (els.length - 1) + FLY_DURATION - PULSE_LEAD_MS;
   setTimeout(() => {
     targetEl.classList.add('score-pulse');
     targetEl.addEventListener('animationend', () => {
@@ -621,6 +625,37 @@ function appendScoreRow(container, label, value) {
   container.appendChild(row);
 }
 
+/**
+ * Append the set-times breakdown section (label, scrollable per-set list,
+ * avg and fastest summary rows) to a container. No-ops if times is empty.
+ * @param {HTMLElement} container
+ * @param {number[]}    times   ms elapsed for each player Set
+ * @param {string}      label   Section heading text
+ */
+function appendSetTimesSection(container, times, label = 'Set Times') {
+  if (times.length === 0) return;
+  const avgMs     = times.reduce((a, b) => a + b, 0) / times.length;
+  const fastestMs = Math.min(...times);
+
+  const labelEl = document.createElement('p');
+  labelEl.className = 'set-times-label';
+  labelEl.textContent = label;
+  container.appendChild(labelEl);
+
+  const list = document.createElement('div');
+  list.className = 'set-times-breakdown';
+  times.forEach((ms, i) => {
+    const row = document.createElement('div');
+    row.className = 'set-time-row';
+    row.innerHTML = `<span>Set ${i + 1}</span><span>${formatTime(ms)}</span>`;
+    list.appendChild(row);
+  });
+  container.appendChild(list);
+
+  appendScoreRow(container, 'Avg / Set', formatTime(avgMs));
+  appendScoreRow(container, 'Fastest',   formatTime(fastestMs));
+}
+
 function showGameOver() {
   stopTimer();
 
@@ -684,56 +719,14 @@ function showGameOver() {
     appendScoreRow(modalScores, 'Time',     finalTimeStr);
     appendScoreRow(modalScores, 'Mistakes', mistakeCount.toString());
 
-    if (playerSetTimes.length > 0) {
-      const avgMs     = playerSetTimes.reduce((a, b) => a + b, 0) / playerSetTimes.length;
-      const fastestMs = Math.min(...playerSetTimes);
-
-      const label = document.createElement('p');
-      label.className = 'set-times-label';
-      label.textContent = 'Your Set Times';
-      modalScores.appendChild(label);
-
-      const list = document.createElement('div');
-      list.className = 'set-times-breakdown';
-      playerSetTimes.forEach((ms, i) => {
-        const row = document.createElement('div');
-        row.className = 'set-time-row';
-        row.innerHTML = `<span>Set ${i + 1}</span><span>${formatTime(ms)}</span>`;
-        list.appendChild(row);
-      });
-      modalScores.appendChild(list);
-
-      appendScoreRow(modalScores, 'Avg / Set', formatTime(avgMs));
-      appendScoreRow(modalScores, 'Fastest',   formatTime(fastestMs));
-    }
+    appendSetTimesSection(modalScores, playerSetTimes, 'Your Set Times');
   } else {
     appendScoreRow(modalScores, 'Player 1', `${score} ${pluralize(score, 'Set')}`);
     appendScoreRow(modalScores, 'Time',     finalTimeStr);
     appendScoreRow(modalScores, 'Hints',    hintsUsed.toString());
     appendScoreRow(modalScores, 'Mistakes', mistakeCount.toString());
 
-    if (playerSetTimes.length > 0) {
-      const avgMs     = playerSetTimes.reduce((a, b) => a + b, 0) / playerSetTimes.length;
-      const fastestMs = Math.min(...playerSetTimes);
-
-      const label = document.createElement('p');
-      label.className = 'set-times-label';
-      label.textContent = 'Set Times';
-      modalScores.appendChild(label);
-
-      const list = document.createElement('div');
-      list.className = 'set-times-breakdown';
-      playerSetTimes.forEach((ms, i) => {
-        const row = document.createElement('div');
-        row.className = 'set-time-row';
-        row.innerHTML = `<span>Set ${i + 1}</span><span>${formatTime(ms)}</span>`;
-        list.appendChild(row);
-      });
-      modalScores.appendChild(list);
-
-      appendScoreRow(modalScores, 'Avg / Set', formatTime(avgMs));
-      appendScoreRow(modalScores, 'Fastest',   formatTime(fastestMs));
-    }
+    appendSetTimesSection(modalScores, playerSetTimes);
   }
 
   modalOverlay.classList.remove('hidden');

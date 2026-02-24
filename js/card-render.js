@@ -9,11 +9,11 @@
 import { pluralize } from './deck.js';
 
 /** Hex color values — read from CSS custom properties so style.css is the single source of truth. */
-const _cs = getComputedStyle(document.documentElement);
+const style = getComputedStyle(document.documentElement);
 const COLOR_HEX = {
-  red:    _cs.getPropertyValue('--color-red').trim(),
-  green:  _cs.getPropertyValue('--color-green').trim(),
-  purple: _cs.getPropertyValue('--color-purple').trim(),
+  red:    style.getPropertyValue('--color-red').trim(),
+  green:  style.getPropertyValue('--color-green').trim(),
+  purple: style.getPropertyValue('--color-purple').trim(),
 };
 
 /**
