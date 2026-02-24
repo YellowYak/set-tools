@@ -84,7 +84,7 @@ A **Set** is any three cards where, for each of the four features, the values ac
 - **Pause** — freezes the timer and the computer's countdown; an opaque overlay hides the board. Resume by clicking the Resume button or pressing Escape
 - **Timer** counts up from 0:00 when the game starts and freezes when the game ends
 - Status bar shows cards remaining in deck, cards on board, and Sets currently present
-- Game-over modal declares the winner (vs Computer) or shows per-Set timing stats (single player); includes "← Home" link to return to the landing page without starting a new game
+- Game-over modal declares the winner (vs Computer) or shows per-Set timing stats, hints used, and mistakes (single player); includes "← Home" link to return to the landing page without starting a new game
 - New Game modal also includes a "← Home" link for easy navigation before a game begins
 - **Game history** — signed-in users have their completed game saved automatically; guests see a gentle "Sign in to save" nudge with a one-click sign-in button. If a guest signs in directly from the game-over modal, the just-completed game is saved retroactively
 

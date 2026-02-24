@@ -685,6 +685,8 @@ function showGameOver() {
   } else {
     appendScoreRow(modalScores, 'Player 1', `${score} ${pluralize(score, 'Set')}`);
     appendScoreRow(modalScores, 'Time',     finalTimeStr);
+    appendScoreRow(modalScores, 'Hints',    hintsUsed.toString());
+    appendScoreRow(modalScores, 'Mistakes', mistakeCount.toString());
 
     if (playerSetTimes.length > 0) {
       const avgMs     = playerSetTimes.reduce((a, b) => a + b, 0) / playerSetTimes.length;
