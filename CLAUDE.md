@@ -20,9 +20,14 @@ This is a vanilla JS single-page app split across three HTML pages, each loading
 **Module dependency graph:**
 ```
 play.js  ──┐
-solve.js ──┼──► deck.js        (card data model: createDeck, shuffle)
-           ├──► set-logic.js   (isSet, findAllSets, hasSet)
-           └──► card-render.js (createCardEl — pure DOM, no events)
+solve.js ──┼──► deck.js           (card data model: createDeck, shuffle)
+           ├──► set-logic.js      (isSet, findAllSets, hasSet)
+           └──► card-render.js    (createCardEl — pure DOM, no events)
+
+play.js  ──┬──► firebase-init.js  (app + auth singleton)
+auth.js  ──┤    └──► firebase-app.js / firebase-auth.js  (CDN)
+           └──► db.js             (saveGame — Firestore Lite wrapper)
+                └──► firebase-init.js
 ```
 
 **Card data model:** Cards are plain objects `{ color, shape, count, fill }` using the string/number values defined in `deck.js`. The full 81-card deck is the Cartesian product of 3 colors × 3 shapes × 3 counts × 3 fills.
@@ -30,6 +35,8 @@ solve.js ──┼──► deck.js        (card data model: createDeck, shuffle
 **SVG rendering:** Each HTML page contains an inline `<svg><defs>` block defining the three shape paths (`#oval`, `#diamond`, `#squiggle`) and three hatch fill patterns (`#hatch-red`, `#hatch-green`, `#hatch-purple`). `card-render.js` references these by ID via `<use href="#shape">`. **Any new page that renders cards must include this SVG defs block.**
 
 **play.js state:** `deck` (remaining cards), `board` (parallel to `#board` DOM children — indices must stay in sync), `selected` (board indices of selected cards, max 3), `busy` (blocks input during animations), and hint state (`hintStep`, `hintSetIndices`). The `board` array and `#board` DOM children are kept strictly parallel; functions like `removeCards` sort indices high-to-low before splicing to preserve lower indices.
+
+Stat counters reset each `startGame()`: `hintsUsed`, `mistakeCount`, `extraCardsDealt`, `playerSetTimes` (ms per player Set — computer sets are excluded). Auth state: `currentUser` (kept in sync via `onAuthStateChanged`), `pendingGameRecord` (stashed when a guest finishes a game; saved with the real `uid` injected when they sign in).
 
 **Animation patterns:**
 - Deal-in: add class `dealing` with `animationDelay`, remove on `animationend`
@@ -44,6 +51,8 @@ solve.js ──┼──► deck.js        (card data model: createDeck, shuffle
 - All styling lives in `css/style.css`. Card dimensions scale via CSS custom properties at three breakpoints.
 - Input uses `pointerdown` (not `click`) to handle both mouse and touch uniformly; `e.preventDefault()` suppresses the synthetic mouse event on touch devices.
 - `set-logic.js` has no DOM dependencies and can be tested in isolation with Node.js if needed.
+- Firebase is loaded via CDN ESM imports (`https://www.gstatic.com/firebasejs/10.14.0/...`). Use `firebase-firestore-lite.js` (not the full `firebase-firestore.js`) for all Firestore writes — the full SDK uses a persistent WebChannel whose `TYPE=terminate` teardown on auth-state changes is blocked by browser privacy extensions, breaking the client for the entire session. The Lite SDK uses plain `fetch()` and has no such issue.
+- `firebase-init.js` is the single place `initializeApp` is called. Never call it again in `auth.js`, `db.js`, or any future module — import `app`/`auth` from `firebase-init.js` instead.
 
 ## UI/Animation Guidelines
 
@@ -53,9 +62,9 @@ After completing feature implementations, always run a visual check by describin
 
 When asked to commit and push, always:
 
-1) git add relevant files,
-2) write a descriptive commit message,
-3) push to current branch,
-4) report the commit hash.
+1) `git add` relevant files,
+2) Write a descriptive commit message,
+3) Push to current branch,
+4) Report the commit hash.
 
 If a PR is requested, create it immediately after pushing.

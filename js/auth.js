@@ -6,29 +6,14 @@
  *
  */
 
-import { initializeApp }
-  from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js';
 import {
-  getAuth, onAuthStateChanged,
+  onAuthStateChanged,
   signInWithPopup, GoogleAuthProvider,
   signInWithEmailAndPassword, createUserWithEmailAndPassword,
   sendPasswordResetEmail, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js';
+import { auth } from './firebase-init.js';
 
-// ── Firebase config ──────────────────────────────────────────────────────────
-// Replace each "REPLACE_WITH_..." value with your actual Firebase project values.
-
-const firebaseConfig = {
-  apiKey: "AIzaSyCDxnbpchJomX9IPvz4ZQmuF6LzXTStPDU",
-  authDomain: "set-card-game-ddd65.firebaseapp.com",
-  projectId: "set-card-game-ddd65",
-  storageBucket: "set-card-game-ddd65.firebasestorage.app",
-  messagingSenderId: "546340267398",
-  appId: "1:546340267398:web:4956237f9c298da7cbf807"
-};
-
-const app            = initializeApp(firebaseConfig);
-const auth           = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
 // ── Friendly error messages ──────────────────────────────────────────────────
@@ -309,3 +294,9 @@ document.getElementById('auth-forgot-link').addEventListener('pointerdown', asyn
 onAuthStateChanged(auth, user => {
   renderNavWidget(user);
 });
+
+// ── Cross-module sign-in trigger ─────────────────────────────────────────────
+// play.js (and any future module) can open the sign-in modal without importing
+// auth.js directly by dispatching a 'open-auth-modal' CustomEvent.
+
+document.addEventListener('open-auth-modal', () => openModal('signin'));

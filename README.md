@@ -72,17 +72,19 @@ A **Set** is any three cards where, for each of the four features, the values ac
 - Valid Set: cards animate off the board and fly to the scoring player's score card
 - Invalid Set: cards flash red and deselect
 - New replacement cards deal in from off-screen with a staggered animation
-- **Hint system** — progressive, one card revealed per click:
+- **Hint system** *(single player only)* — progressive, one card revealed per click:
   - 1st click: one card from a valid Set is highlighted
   - 2nd click: a second card from the same Set
   - 3rd click: the third card
   - Further clicks: reminder that all three are shown
   - Hint resets automatically when a Set is completed
-- **All Sets** button opens an overlay listing every valid Set on the current board as mini-card triplets (click outside or press Escape to close)
+- **All Sets** *(single player only)* — button opens an overlay listing every valid Set on the current board as mini-card triplets (click outside or press Escape to close)
 - **Pause** — freezes the timer and the computer's countdown; an opaque overlay hides the board. Resume by clicking the Resume button or pressing Escape
 - **Timer** counts up from 0:00 when the game starts and freezes when the game ends
 - Status bar shows cards remaining in deck, cards on board, and Sets currently present
-- Game-over modal declares the winner (vs Computer) or shows per-Set timing stats (single player)
+- Game-over modal declares the winner (vs Computer) or shows per-Set timing stats (single player); includes "← Home" link to return to the landing page without starting a new game
+- New Game modal also includes a "← Home" link for easy navigation before a game begins
+- **Game history** — signed-in users have their completed game saved automatically; guests see a gentle "Sign in to save" nudge with a one-click sign-in button. If a guest signs in directly from the game-over modal, the just-completed game is saved retroactively
 
 ### Solve page
 - Browse all 81 cards in a scrollable picker; click any card to add/remove it from the board
@@ -105,14 +107,16 @@ A **Set** is any three cards where, for each of the four features, the values ac
 │   ├── card-render.js      createCardEl(), renderSetList() — DOM card builders
 │   ├── play.js             Game loop, animations, hint system
 │   ├── solve.js            Board builder and solver UI
-│   └── auth.js             Firebase Authentication — sign-in widget and modal
+│   ├── auth.js             Firebase Authentication — sign-in widget and modal
+│   ├── firebase-init.js    Firebase app singleton (shared by auth.js and db.js)
+│   └── db.js               Firestore helpers — saveGame() writes completed game records
 └── assets/
     └── set-card-prototype.html   Visual reference for SVG shapes and fills
 ```
 
 ## Technical Notes
 
-- **Firebase Authentication** — loaded via the official Firebase CDN ESM; no bundler needed (`import` directly from `https://www.gstatic.com/firebasejs/...`)
+- **Firebase Authentication + Firestore** — loaded via the official Firebase CDN ESM; no bundler needed. Firestore uses the Lite SDK (`firebase-firestore-lite`) which issues plain REST requests rather than a WebChannel, avoiding compatibility issues with browser privacy extensions
 - **No other dependencies** — vanilla ES6 modules (`type="module"`), no npm, no build step
 - **SVG card rendering** — shapes (`#oval`, `#diamond`, `#squiggle`) and hatch fill patterns (`#hatch-red`, `#hatch-green`, `#hatch-purple`) are defined once per page in an inline `<svg><defs>` block; cards reference them with `<use href="#shape">`
 - **Card DOM structure** — each card is a `<div class="card">` with `data-color`, `data-shape`, `data-count`, `data-fill` attributes and an `aria-label` (e.g. `"2 red striped ovals"`)

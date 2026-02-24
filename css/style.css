@@ -1012,6 +1012,52 @@ a {
   color: rgba(255,255,255,0.7);
 }
 
+/* ── Save-game nudge (game-over modal) ─────────────────────── */
+.save-nudge {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 0.8rem;
+  color: rgba(168, 200, 160, 0.65);
+  text-align: center;
+}
+
+.save-nudge--saved {
+  color: #88bb80;
+}
+
+.save-nudge-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: rgba(168, 200, 160, 0.9);
+  text-decoration: underline;
+  font-family: var(--font-sans);
+  transition: color 0.15s;
+}
+
+.save-nudge-btn:hover {
+  color: #f5e6c8;
+}
+
+.modal-home-link {
+  display: block;
+  text-align: center;
+  margin-top: 14px;
+  font-size: 0.8rem;
+  color: rgba(168, 200, 160, 0.4);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.modal-home-link:hover {
+  color: rgba(168, 200, 160, 0.8);
+}
+
 /* ============================================================
    Responsive Tweaks
    ============================================================ */
