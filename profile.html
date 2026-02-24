@@ -46,6 +46,22 @@
               <div class="auth-error hidden" id="profile-name-status" aria-live="polite"></div>
             </form>
           </div>
+
+          <hr class="profile-divider hidden" id="profile-divider">
+
+          <div id="profile-password-section" class="hidden">
+            <div class="profile-field-label">Change Password</div>
+            <form id="profile-password-form" class="profile-password-form" novalidate>
+              <input type="password" class="auth-input" id="profile-current-password"
+                     placeholder="Current password" autocomplete="current-password">
+              <input type="password" class="auth-input" id="profile-new-password"
+                     placeholder="New password (min 6 chars)" autocomplete="new-password">
+              <div class="profile-name-row">
+                <div class="auth-error hidden" id="profile-password-status" aria-live="polite"></div>
+                <button type="submit" class="btn btn-primary">Update</button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>

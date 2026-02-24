@@ -1176,3 +1176,16 @@ a {
   color: #a8c8a0;
   text-align: center;
 }
+
+.profile-divider {
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  margin: 4px 0;
+  width: 100%;
+}
+
+.profile-password-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
