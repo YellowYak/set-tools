@@ -49,17 +49,20 @@ function renderNavWidget(user) {
     const displayName = user.displayName || user.email;
     authWidget.innerHTML = `
       <div class="auth-avatar" data-action="toggle-dropdown"
-           tabindex="0" role="button" aria-haspopup="true" title="${displayName}">
-        ${initial}
+           tabindex="0" role="button" aria-haspopup="true">
       </div>
       <div class="auth-dropdown hidden" id="auth-dropdown">
-        <div class="auth-dropdown-name">${displayName}</div>
+        <div class="auth-dropdown-name"></div>
         <button class="btn btn-secondary" data-action="profile">Profile</button>
         <button class="btn btn-secondary auth-signout-btn" data-action="signout">
           Sign Out
         </button>
       </div>
     `;
+    const avatarEl = authWidget.querySelector('.auth-avatar');
+    avatarEl.textContent = initial;
+    avatarEl.setAttribute('title', displayName);
+    authWidget.querySelector('.auth-dropdown-name').textContent = displayName;
   }
 }
 
