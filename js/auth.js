@@ -54,6 +54,7 @@ function renderNavWidget(user) {
       </div>
       <div class="auth-dropdown hidden" id="auth-dropdown">
         <div class="auth-dropdown-name">${displayName}</div>
+        <button class="btn btn-secondary" data-action="profile">Profile</button>
         <button class="btn btn-secondary auth-signout-btn" data-action="signout">
           Sign Out
         </button>
@@ -73,6 +74,9 @@ authWidget.addEventListener('pointerdown', async e => {
     openModal('signin');
   } else if (action === 'toggle-dropdown') {
     document.getElementById('auth-dropdown')?.classList.toggle('hidden');
+  } else if (action === 'profile') {
+    document.getElementById('auth-dropdown')?.classList.add('hidden');
+    window.location.href = 'profile.html';
   } else if (action === 'signout') {
     document.getElementById('auth-dropdown')?.classList.add('hidden');
     await signOut(auth);

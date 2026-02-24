@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile — Set</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+<body>
+
+<!-- ── Site Header ── -->
+<header class="site-header">
+  <a href="index.html" class="logo">Set</a>
+  <nav class="site-nav" aria-label="Main navigation">
+    <a href="index.html">Home</a>
+    <a href="play.html">Play</a>
+    <a href="solve.html">Solve</a>
+  </nav>
+</header>
+
+<main class="page-content">
+  <div class="profile-page">
+
+    <!-- Signed-in state -->
+    <div id="profile-signed-in" class="hidden">
+      <div class="profile-card">
+        <div class="profile-avatar-large" id="profile-avatar-large"></div>
+
+        <div class="profile-fields">
+          <div>
+            <div class="profile-field-label">Email</div>
+            <div class="profile-email-value" id="profile-email-value"></div>
+          </div>
+
+          <div>
+            <div class="profile-field-label">Display Name</div>
+            <form id="profile-name-form" novalidate>
+              <div class="profile-name-row">
+                <input type="text" class="auth-input" id="profile-name-input"
+                       placeholder="Your name" maxlength="50" autocomplete="name">
+                <button type="submit" class="btn btn-primary">Save</button>
+              </div>
+              <div class="auth-error hidden" id="profile-name-status" aria-live="polite"></div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Signed-out state -->
+    <div id="profile-signed-out" class="hidden">
+      <div class="profile-card profile-signed-out-card">
+        <p>Sign in to view your profile.</p>
+        <button class="btn btn-primary" id="profile-sign-in-btn">Sign In</button>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script type="module" src="js/profile.js"></script>
+<script type="module" src="js/auth.js"></script>
+</body>
+</html>
