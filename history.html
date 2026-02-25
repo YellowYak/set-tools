@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game History — Set</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+<body>
+
+<!-- ── Site Header ── -->
+<header class="site-header">
+  <a href="index.html" class="logo">Set</a>
+  <nav class="site-nav" aria-label="Main navigation">
+    <a href="index.html">Home</a>
+    <a href="play.html">Play</a>
+    <a href="solve.html">Solve</a>
+  </nav>
+</header>
+
+<main class="page-content">
+  <div class="history-page">
+
+    <!-- Loading state -->
+    <div id="history-loading" class="hidden">
+      <p class="history-status-msg">Loading your game history…</p>
+    </div>
+
+    <!-- Signed-in state -->
+    <div id="history-signed-in" class="hidden">
+
+      <h1 class="history-heading">Game History</h1>
+
+      <!-- Summary panel -->
+      <div class="history-summary-panel" id="history-summary-panel"></div>
+
+      <!-- Filters -->
+      <div class="history-filters" id="history-filters">
+        <div class="filter-group">
+          <span class="filter-label">Mode</span>
+          <div class="filter-pills">
+            <button class="filter-pill active" data-filter="mode" data-value="all">All</button>
+            <button class="filter-pill" data-filter="mode" data-value="solo">Solo</button>
+            <button class="filter-pill" data-filter="mode" data-value="vs-computer">vs CPU</button>
+          </div>
+        </div>
+        <div class="filter-group" id="filter-outcome-group">
+          <span class="filter-label">Outcome</span>
+          <div class="filter-pills">
+            <button class="filter-pill active" data-filter="outcome" data-value="all">All</button>
+            <button class="filter-pill" data-filter="outcome" data-value="win">Win</button>
+            <button class="filter-pill" data-filter="outcome" data-value="loss">Loss</button>
+            <button class="filter-pill" data-filter="outcome" data-value="tie">Tie</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- No results (when active filters match nothing) -->
+      <p class="history-status-msg hidden" id="history-no-results">No games match your current filters.</p>
+
+      <!-- Table -->
+      <div class="history-table-wrapper" id="history-table-wrapper">
+        <table class="history-table" id="history-table">
+          <thead>
+            <tr>
+              <th class="col-chevron"></th>
+              <th class="col-date"    data-sort="completedAt" aria-sort="descending">Date</th>
+              <th class="col-mode"    data-sort="gameMode">Mode</th>
+              <th class="col-duration" data-sort="durationMs">Duration</th>
+              <th class="col-sets"    data-sort="playerSets">Sets</th>
+              <th class="col-outcome" data-sort="outcome">Outcome</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="history-pagination" id="history-pagination">
+        <button class="btn btn-secondary" id="history-prev" disabled>← Prev</button>
+        <span id="history-page-label">Page 1 of 1</span>
+        <button class="btn btn-secondary" id="history-next" disabled>Next →</button>
+      </div>
+
+    </div>
+
+    <!-- Empty state (signed-in, no games) -->
+    <div id="history-empty" class="hidden">
+      <p class="history-status-msg">No games on record yet. <a href="play.html">Play a game</a> to start tracking your history!</p>
+    </div>
+
+    <!-- Signed-out state -->
+    <div id="history-signed-out" class="hidden">
+      <div class="profile-card profile-signed-out-card">
+        <p>Sign in to view your game history.</p>
+        <button class="btn btn-primary" id="history-sign-in-btn">Sign In</button>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script type="module" src="js/history.js"></script>
+<script type="module" src="js/auth.js"></script>
+</body>
+</html>

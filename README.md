@@ -27,6 +27,7 @@ Any static file server will do (VS Code Live Server, `npx serve`, etc.).
 | `play.html` | Play the game — single player or vs Computer, full game loop |
 | `solve.html` | Board builder and Set solver — add any cards, find all Sets |
 | `profile.html` | User profile — edit display name, change password (email/password accounts) |
+| `history.html` | Game history — paginated, filterable, sortable table of past games with aggregate stats |
 
 ## The Game
 
@@ -112,8 +113,9 @@ A **Set** is any three cards where, for each of the four features, the values ac
 │   ├── solve.js            Board builder and solver UI
 │   ├── auth.js             Firebase Authentication — sign-in widget and modal
 │   ├── profile.js          Profile page — display name and password updates
+│   ├── history.js          History page — loads, filters, sorts, and paginates game records
 │   ├── firebase-init.js    Firebase app singleton (shared by auth.js and db.js)
-│   └── db.js               Firestore helpers — saveGame() writes completed game records
+│   └── db.js               Firestore helpers — saveGame() and getGames()
 └── assets/
     └── set-card-prototype.html   Visual reference for SVG shapes and fills
 ```
