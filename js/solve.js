@@ -18,7 +18,6 @@ const cardPickerEl   = document.getElementById('card-picker');
 const btnRandom      = document.getElementById('btn-random');
 const btnFindSets    = document.getElementById('btn-find-sets');
 const btnClearBoard  = document.getElementById('btn-clear-board');
-const resultsArea    = document.getElementById('results-area');
 const resultsLabel   = document.getElementById('results-label');
 const setsResultList = document.getElementById('sets-result-list');
 
@@ -31,6 +30,9 @@ const allCards = createDeck();
  * Using a Set preserves uniqueness without extra logic.
  */
 const boardIndices = new Set();
+
+/** Standard number of cards on the board (fewer only when the deck runs short). */
+const BOARD_SIZE = 12;
 
 // ── Event wiring helper ───────────────────────────────────────
 /**
@@ -45,8 +47,8 @@ function addCardListeners(el, handler) {
   });
 }
 
-// ── Build the card picker ─────────────────────────────────────
-function buildPicker() {
+// ── Card picker ───────────────────────────────────────────────
+function renderPicker() {
   cardPickerEl.innerHTML = '';
   allCards.forEach((card, idx) => {
     const el = createCardEl(card);
@@ -104,7 +106,7 @@ function clearBoard() {
 function dealRandom() {
   boardIndices.clear();
   const shuffled = shuffle([...Array(allCards.length).keys()]);
-  for (let i = 0; i < Math.min(12, shuffled.length); i++) {
+  for (let i = 0; i < Math.min(BOARD_SIZE, shuffled.length); i++) {
     boardIndices.add(shuffled[i]);
   }
   syncBoardUI();
@@ -149,5 +151,5 @@ btnFindSets.addEventListener('click', findAndDisplaySets);
 btnClearBoard.addEventListener('click', clearBoard);
 
 // ── Init ──────────────────────────────────────────────────────
-buildPicker();
+renderPicker();
 renderBoard();

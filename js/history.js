@@ -27,6 +27,9 @@ const sortState = {
   direction: 'desc',         // 'asc' | 'desc'
 };
 
+// Numeric/date columns default to descending when first clicked (largest first).
+const DESCENDING_DEFAULT_COLS = new Set(['completedAt', 'durationMs', 'playerSets']);
+
 // ── DOM refs ─────────────────────────────────────────────────────────────────
 
 const loadingEl      = document.getElementById('history-loading');
@@ -282,9 +285,7 @@ document.querySelector('#history-table thead').addEventListener('pointerdown', e
     sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
   } else {
     sortState.column    = column;
-    // Default new columns to descending for date/duration/sets; ascending for text
-    sortState.direction = (column === 'completedAt' || column === 'durationMs' || column === 'playerSets')
-      ? 'desc' : 'asc';
+    sortState.direction = DESCENDING_DEFAULT_COLS.has(column) ? 'desc' : 'asc';
   }
 
   updateSortIndicators();
