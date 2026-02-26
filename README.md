@@ -6,7 +6,7 @@ A standalone browser implementation of the card game **Set**, built with vanilla
 
 ### Online
 
-Live demo available at https://yellowyak.github.io/set-tools/
+Live demo available at https://set-card-game-ddd65.web.app/
 
 ### Locally
 
