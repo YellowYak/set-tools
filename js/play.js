@@ -7,7 +7,7 @@
  *   selected         — indices (into board) of currently selected cards (max 3)
  *   score            — player 1's sets found
  *   busy             — true while an animation is running (blocks new selections)
- *   gameMode         — 'solo' | 'vs-computer'
+ *   gameMode         — MODE_SOLO | MODE_VS_COMPUTER
  *   difficulty       — 'easy' | 'medium' | 'hard' | 'genius'
  *   computerScore    — sets found by the computer
  *   computerTimerHandle — setTimeout handle for the computer's next move
@@ -46,6 +46,10 @@ const btnSolo            = document.getElementById('btn-solo');
 const btnVsComputer      = document.getElementById('btn-vs-computer');
 const btnBackToMode      = document.getElementById('btn-back-to-mode');
 
+// ── Game Mode Constants ─────────────────────────────────────
+const MODE_SOLO        = 'solo';
+const MODE_VS_COMPUTER = 'vs-computer';
+
 // ── Game State ──────────────────────────────────────────────
 let deck     = [];
 let board    = [];   // card objects on the board
@@ -54,7 +58,7 @@ let score    = 0;
 let busy     = false;
 
 // Mode & computer state
-let gameMode          = 'solo';    // 'solo' | 'vs-computer'
+let gameMode          = MODE_SOLO;  // MODE_SOLO | MODE_VS_COMPUTER
 let difficulty        = 'medium';  // 'easy' | 'medium' | 'hard' | 'genius'
 let computerScore     = 0;
 let computerTimerHandle = null;
@@ -106,11 +110,16 @@ let computerTimerDeadline = 0; // Date.now() + delay when computer timer was sch
 let computerPauseRemaining = 0; // ms left on computer timer when paused
 
 // ── Animation Timing Constants (ms) ─────────────────────────
-const DEAL_STAGGER_MS    = 80;   // delay between successive cards dealing in
-const REPLACE_STAGGER_MS = 70;   // delay between successive cards replacing
-const ERROR_FLASH_MS     = 650;  // error flash animation duration
-const COMPUTER_RETRY_MS  = 300;  // retry delay when busy blocks a computer move
-const EXTRA_DEAL_PAUSE_MS = 3000; // pause before dealing extra cards (no set on board)
+const DEAL_STAGGER_MS        = 80;   // delay between successive cards dealing in
+const REPLACE_STAGGER_MS     = 70;   // delay between successive cards replacing
+const ERROR_FLASH_MS         = 650;  // error flash animation duration
+const COMPUTER_RETRY_MS      = 300;  // retry delay when busy blocks a computer move
+const EXTRA_DEAL_PAUSE_MS    = 3000; // pause before dealing extra cards (no set on board)
+const FLY_DURATION_MS        = 350;  // CSS transition duration per card clone
+const FLY_STAGGER_MS         = 70;   // ms between launching successive clones
+const FLY_CALLBACK_BUFFER_MS = 40;   // ms after last clone lands before onComplete fires
+const CLONE_CLEANUP_MS       = 20;   // ms after each clone's flight before it's removed
+const PULSE_LEAD_MS          = 60;   // ms before last clone lands that score pulse fires
 
 // ── Difficulty Ranges (ms) ──────────────────────────────────
 const DIFFICULTY_RANGES = {
@@ -145,11 +154,11 @@ function startGame() {
   busy          = false;
 
   // Show or hide controls based on mode
-  btnHint.classList.toggle('hidden', gameMode !== 'solo');
-  btnShowSets.classList.toggle('hidden', gameMode !== 'solo');
-  scoreComputerCardEl.classList.toggle('hidden', gameMode !== 'vs-computer');
+  btnHint.classList.toggle('hidden', gameMode !== MODE_SOLO);
+  btnShowSets.classList.toggle('hidden', gameMode !== MODE_SOLO);
+  scoreComputerCardEl.classList.toggle('hidden', gameMode !== MODE_VS_COMPUTER);
   document.getElementById('computer-difficulty').textContent =
-    gameMode === 'vs-computer' ? difficulty : '';
+    gameMode === MODE_VS_COMPUTER ? difficulty : '';
 
   paused = false;
   pausedElapsed = 0;
@@ -173,7 +182,7 @@ function startGame() {
   updateStatus();
   startTimer();
 
-  if (gameMode === 'vs-computer') {
+  if (gameMode === MODE_VS_COMPUTER) {
     scheduleComputerMove();
   }
 }
@@ -336,7 +345,7 @@ function handleSuccess(els, indices) {
   busy = true;
   resetHint();
 
-  if (gameMode === 'vs-computer') {
+  if (gameMode === MODE_VS_COMPUTER) {
     clearComputerTimer();
     showToast('You found a Set!', 2200);
   } else {
@@ -359,7 +368,7 @@ function handleSuccess(els, indices) {
     ensureSetOnBoard(() => {
       busy = false;
       updateStatus();
-      if (!checkGameOver() && gameMode === 'vs-computer' && !paused) {
+      if (!checkGameOver() && gameMode === MODE_VS_COMPUTER && !paused) {
         scheduleComputerMove();
       }
     });
@@ -379,13 +388,8 @@ function flyCardsToScore(els, targetEl, onComplete) {
   const targetCX   = targetRect.left + targetRect.width  / 2;
   const targetCY   = targetRect.top  + targetRect.height / 2;
 
-  // Stagger: last clone lands at t = FLY_STAGGER * 2 + FLY_DURATION
-  const FLY_DURATION        = 350; // ms, CSS transition duration per clone
-  const FLY_STAGGER         = 70;  // ms between each clone launch
-  const FLY_CALLBACK_BUFFER = 40;  // ms after last clone lands before onComplete fires
-  const CLONE_CLEANUP_MS    = 20;  // ms after each clone's flight before it's removed
-  const PULSE_LEAD_MS       = 60;  // ms before last clone lands that the score pulse fires
-  const TOTAL_MS = FLY_STAGGER * (els.length - 1) + FLY_DURATION + FLY_CALLBACK_BUFFER;
+  // Stagger: last clone lands at t = FLY_STAGGER_MS * 2 + FLY_DURATION_MS
+  const TOTAL_MS = FLY_STAGGER_MS * (els.length - 1) + FLY_DURATION_MS + FLY_CALLBACK_BUFFER_MS;
 
   els.forEach((el, i) => {
     // Snapshot position and clone BEFORE hiding the original so the
@@ -408,8 +412,8 @@ function flyCardsToScore(els, targetEl, onComplete) {
       margin: 0;
       z-index: 50;
       pointer-events: none;
-      transition: transform ${FLY_DURATION}ms ease-in ${i * FLY_STAGGER}ms,
-                  opacity   ${FLY_DURATION}ms ease-in ${i * FLY_STAGGER}ms;
+      transition: transform ${FLY_DURATION_MS}ms ease-in ${i * FLY_STAGGER_MS}ms,
+                  opacity   ${FLY_DURATION_MS}ms ease-in ${i * FLY_STAGGER_MS}ms;
     `;
     if (rotation) clone.style.setProperty('--card-rotate', rotation);
     document.body.appendChild(clone);
@@ -426,12 +430,12 @@ function flyCardsToScore(els, targetEl, onComplete) {
     });
 
     // Clean up clone after its individual flight completes
-    const cloneRemoveAt = FLY_STAGGER * i + FLY_DURATION + CLONE_CLEANUP_MS;
+    const cloneRemoveAt = FLY_STAGGER_MS * i + FLY_DURATION_MS + CLONE_CLEANUP_MS;
     setTimeout(() => clone.remove(), cloneRemoveAt);
   });
 
   // Pulse the target score card as the last clone arrives
-  const pulseAt = FLY_STAGGER * (els.length - 1) + FLY_DURATION - PULSE_LEAD_MS;
+  const pulseAt = FLY_STAGGER_MS * (els.length - 1) + FLY_DURATION_MS - PULSE_LEAD_MS;
   setTimeout(() => {
     targetEl.classList.add('score-pulse');
     targetEl.addEventListener('animationend', () => {
@@ -656,31 +660,40 @@ function appendSetTimesSection(container, times, label = 'Set Times') {
   appendScoreRow(container, 'Fastest',   formatTime(fastestMs));
 }
 
+/**
+ * Build the Firestore game record from current game state.
+ * Pure data construction — no side effects.
+ * @returns {Object}
+ */
+function buildGameRecord() {
+  const durationMs = Date.now() - timerStart;
+  return {
+    uid:            currentUser?.uid ?? null,
+    gameMode,
+    difficulty:     gameMode === MODE_VS_COMPUTER ? difficulty : null,
+    durationMs,
+    playerSets:     score,
+    computerSets:   gameMode === MODE_VS_COMPUTER ? computerScore : null,
+    outcome:        gameMode === MODE_VS_COMPUTER
+                      ? (score > computerScore ? 'win' : score < computerScore ? 'loss' : 'tie')
+                      : null,
+    hintsUsed,
+    mistakeCount,
+    extraCardsDealt,
+    setTimesMs:     [...playerSetTimes],
+    avgSetTimeMs:   playerSetTimes.length
+                      ? Math.round(playerSetTimes.reduce((a, b) => a + b, 0) / playerSetTimes.length)
+                      : null,
+    fastestSetMs:   playerSetTimes.length ? Math.min(...playerSetTimes) : null,
+    slowestSetMs:   playerSetTimes.length ? Math.max(...playerSetTimes) : null,
+  };
+}
+
 function showGameOver() {
   stopTimer();
 
   // ── Persist game record to Firestore ────────────────────────────────────
-  const durationMs = Date.now() - timerStart;
-  const gameRecord = {
-    uid:             currentUser ? currentUser.uid : null,
-    gameMode,
-    difficulty:      gameMode === 'vs-computer' ? difficulty : null,
-    durationMs,
-    playerSets:      score,
-    computerSets:    gameMode === 'vs-computer' ? computerScore : null,
-    outcome:         gameMode === 'vs-computer'
-                       ? (score > computerScore ? 'win' : score < computerScore ? 'loss' : 'tie')
-                       : null,
-    hintsUsed,
-    mistakeCount,
-    extraCardsDealt,
-    setTimesMs:      [...playerSetTimes],
-    avgSetTimeMs:    playerSetTimes.length
-                       ? Math.round(playerSetTimes.reduce((a, b) => a + b, 0) / playerSetTimes.length)
-                       : null,
-    fastestSetMs:    playerSetTimes.length ? Math.min(...playerSetTimes) : null,
-    slowestSetMs:    playerSetTimes.length ? Math.max(...playerSetTimes) : null,
-  };
+  const gameRecord = buildGameRecord();
 
   const nudgeEl = document.getElementById('modal-save-nudge');
   nudgeEl.innerHTML = '';
@@ -708,7 +721,7 @@ function showGameOver() {
 
   modalScores.innerHTML = '';
 
-  if (gameMode === 'vs-computer') {
+  if (gameMode === MODE_VS_COMPUTER) {
     const resultText = score > computerScore ? 'You win!'
                      : score < computerScore ? 'Computer wins!'
                      : "It's a tie!";
@@ -735,7 +748,7 @@ function showGameOver() {
 // ── UI Updates ────────────────────────────────────────────────
 function updateScoreDisplay() {
   scoreP1El.textContent = score;
-  if (gameMode === 'vs-computer') {
+  if (gameMode === MODE_VS_COMPUTER) {
     scoreComputerEl.textContent = computerScore;
   }
 }
@@ -787,7 +800,7 @@ function pauseGame() {
   timerInterval = null;
 
   // Capture remaining computer time, then cancel the timer
-  if (gameMode === 'vs-computer' && computerTimerDeadline > 0) {
+  if (gameMode === MODE_VS_COMPUTER && computerTimerDeadline > 0) {
     computerPauseRemaining = Math.max(0, computerTimerDeadline - Date.now());
     clearComputerTimer();
   }
@@ -804,7 +817,7 @@ function resumeGame() {
   startTimerInterval();
 
   // Reschedule the computer with its remaining time
-  if (gameMode === 'vs-computer' && computerPauseRemaining > 0) {
+  if (gameMode === MODE_VS_COMPUTER && computerPauseRemaining > 0) {
     computerTimerDeadline = Date.now() + computerPauseRemaining;
     computerTimerHandle = setTimeout(computerTakesSet, computerPauseRemaining);
     computerPauseRemaining = 0;
@@ -843,7 +856,7 @@ btnShowSets.addEventListener('click', showSetsOverlay);
 btnCloseSets.addEventListener('click', closeSetsOverlay);
 
 btnSolo.addEventListener('click', () => {
-  gameMode = 'solo';
+  gameMode = MODE_SOLO;
   startGame();
 });
 
@@ -853,7 +866,7 @@ btnBackToMode.addEventListener('click', showModeModal);
 
 document.querySelectorAll('.difficulty-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    gameMode   = 'vs-computer';
+    gameMode   = MODE_VS_COMPUTER;
     difficulty = btn.dataset.difficulty;
     startGame();
   });

@@ -40,6 +40,7 @@ authWidget.className = 'auth-widget';
 nav.appendChild(authWidget);
 
 function renderNavWidget(user) {
+  document.getElementById('hero-history-btn')?.classList.toggle('hidden', !user);
   if (!user) {
     authWidget.innerHTML = `
       <button class="auth-sign-in-btn" data-action="open-modal">Sign In</button>
@@ -54,6 +55,7 @@ function renderNavWidget(user) {
       <div class="auth-dropdown hidden" id="auth-dropdown">
         <div class="auth-dropdown-name"></div>
         <button class="btn btn-secondary" data-action="profile">Profile</button>
+        <button class="btn btn-secondary" data-action="history">History</button>
         <button class="btn btn-secondary auth-signout-btn" data-action="signout">
           Sign Out
         </button>
@@ -80,6 +82,9 @@ authWidget.addEventListener('pointerdown', async e => {
   } else if (action === 'profile') {
     document.getElementById('auth-dropdown')?.classList.add('hidden');
     window.location.href = 'profile.html';
+  } else if (action === 'history') {
+    document.getElementById('auth-dropdown')?.classList.add('hidden');
+    window.location.href = 'history.html';
   } else if (action === 'signout') {
     document.getElementById('auth-dropdown')?.classList.add('hidden');
     await signOut(auth);

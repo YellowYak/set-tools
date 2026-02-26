@@ -62,29 +62,38 @@ function renderProfile(user) {
   dividerEl.classList.toggle('hidden', !isPasswordUser);
 }
 
+// ── Status helpers ───────────────────────────────────────────────────────────
+
+function clearStatus(el) {
+  el.textContent = '';
+  el.classList.add('hidden');
+  el.classList.remove('auth-success');
+}
+
+function showStatus(el, message, success = false) {
+  el.textContent = message;
+  el.classList.toggle('auth-success', success);
+  el.classList.remove('hidden');
+}
+
 // ── Save name ────────────────────────────────────────────────────────────────
 
 nameForm.addEventListener('submit', async e => {
   e.preventDefault();
   const newName = nameInput.value.trim();
 
-  statusEl.textContent = '';
-  statusEl.classList.add('hidden');
-  statusEl.classList.remove('auth-success');
+  clearStatus(statusEl);
 
   try {
     await updateProfile(auth.currentUser, { displayName: newName || null });
 
-    statusEl.textContent = 'Name saved.';
-    statusEl.classList.remove('hidden');
-    statusEl.classList.add('auth-success');
+    showStatus(statusEl, 'Name saved.', true);
 
     // Reflect updated initial in avatar
     const initial = (newName || auth.currentUser.email || '?')[0].toUpperCase();
     avatarEl.textContent = initial;
   } catch {
-    statusEl.textContent = 'Failed to save name. Please try again.';
-    statusEl.classList.remove('hidden', 'auth-success');
+    showStatus(statusEl, 'Failed to save name. Please try again.');
   }
 });
 
@@ -95,13 +104,10 @@ passwordForm.addEventListener('submit', async e => {
   const currentPw = currentPwInput.value;
   const newPw     = newPwInput.value.trim();
 
-  passwordStatusEl.textContent = '';
-  passwordStatusEl.classList.add('hidden');
-  passwordStatusEl.classList.remove('auth-success');
+  clearStatus(passwordStatusEl);
 
   if (newPw.length < 6) {
-    passwordStatusEl.textContent = 'New password must be at least 6 characters.';
-    passwordStatusEl.classList.remove('hidden');
+    showStatus(passwordStatusEl, 'New password must be at least 6 characters.');
     return;
   }
 
@@ -110,14 +116,10 @@ passwordForm.addEventListener('submit', async e => {
     await reauthenticateWithCredential(auth.currentUser, credential);
     await updatePassword(auth.currentUser, newPw);
 
-    passwordStatusEl.textContent = 'Password updated.';
-    passwordStatusEl.classList.remove('hidden');
-    passwordStatusEl.classList.add('auth-success');
+    showStatus(passwordStatusEl, 'Password updated.', true);
     passwordForm.reset();
   } catch (err) {
-    passwordStatusEl.textContent =
-      FRIENDLY_PW_ERRORS[err.code] ?? 'Something went wrong. Please try again.';
-    passwordStatusEl.classList.remove('hidden');
+    showStatus(passwordStatusEl, FRIENDLY_PW_ERRORS[err.code] ?? 'Something went wrong. Please try again.');
   }
 });
 

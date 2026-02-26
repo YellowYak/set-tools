@@ -8,8 +8,29 @@
 
 import {
   getFirestore, collection, addDoc, serverTimestamp,
+  query, where, orderBy, getDocs,
 } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-lite.js';
 import { app } from './firebase-init.js';
+
+/**
+ * Fetch all completed games for a user, newest first.
+ * Requires a Firestore composite index on (uid ASC, completedAt DESC).
+ * If the index doesn't exist yet, Firestore returns an error whose message
+ * contains a direct link to create it in the Firebase console.
+ *
+ * @param {string} uid
+ * @returns {Promise<Object[]>}
+ */
+export async function getGames(uid) {
+  const db = getFirestore(app);
+  const q = query(
+    collection(db, 'games'),
+    where('uid', '==', uid),
+    orderBy('completedAt', 'desc'),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
 
 /**
  * Save a completed game to Firestore.
