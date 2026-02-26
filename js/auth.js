@@ -8,7 +8,7 @@
 
 import {
   onAuthStateChanged,
-  signInWithRedirect, getRedirectResult, GoogleAuthProvider,
+  signInWithPopup, GoogleAuthProvider,
   signInWithEmailAndPassword, createUserWithEmailAndPassword,
   sendPasswordResetEmail, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js';
@@ -28,10 +28,6 @@ function friendlyError(code) {
     'auth/invalid-email':          'Please enter a valid email address.',
     'auth/too-many-requests':      'Too many attempts. Please try again later.',
     'auth/network-request-failed': 'Network error. Check your connection.',
-    'auth/redirect-cancelled-by-user': 'Sign-in was cancelled.',
-    'auth/redirect-operation-pending': 'A sign-in is already in progress.',
-    'auth/account-exists-with-different-credential':
-      'An account with this email already exists using a different sign-in method.',
   };
   return map[code] ?? 'Something went wrong. Please try again.';
 }
@@ -73,7 +69,7 @@ function renderNavWidget(user) {
 }
 
 // Delegated pointer events on the nav widget (set up once, survives re-renders)
-authWidget.addEventListener('pointerdown', e => {
+authWidget.addEventListener('pointerdown', async e => {
   e.preventDefault();
   const actionEl = e.target.closest('[data-action]');
   if (!actionEl) return;
@@ -91,7 +87,7 @@ authWidget.addEventListener('pointerdown', e => {
     window.location.href = 'history.html';
   } else if (action === 'signout') {
     document.getElementById('auth-dropdown')?.classList.add('hidden');
-    signOut(auth);
+    await signOut(auth);
   }
 });
 
@@ -238,20 +234,26 @@ function showSuccess(id, message) {
 
 // ── Google Sign-In ───────────────────────────────────────────────────────────
 
-function handleGoogleSignIn(tabId) {
-  try { sessionStorage.setItem('set_authRedirectTab', tabId); } catch { /* ignore */ }
-  signInWithRedirect(auth, googleProvider);
-  // Page navigates away immediately; no return value to handle here.
+async function handleGoogleSignIn(errorId) {
+  try {
+    await signInWithPopup(auth, googleProvider);
+    closeModal();
+  } catch (err) {
+    if (err.code !== 'auth/popup-closed-by-user' &&
+        err.code !== 'auth/cancelled-popup-request') {
+      showError(errorId, friendlyError(err.code));
+    }
+  }
 }
 
-document.getElementById('auth-google-signin').addEventListener('pointerdown', e => {
+document.getElementById('auth-google-signin').addEventListener('pointerdown', async e => {
   e.preventDefault();
-  handleGoogleSignIn('signin');
+  await handleGoogleSignIn('signin-error');
 });
 
-document.getElementById('auth-google-create').addEventListener('pointerdown', e => {
+document.getElementById('auth-google-create').addEventListener('pointerdown', async e => {
   e.preventDefault();
-  handleGoogleSignIn('create');
+  await handleGoogleSignIn('create-error');
 });
 
 // ── Email / Password Sign In ─────────────────────────────────────────────────
@@ -304,31 +306,6 @@ document.getElementById('auth-forgot-link').addEventListener('pointerdown', asyn
 onAuthStateChanged(auth, user => {
   renderNavWidget(user);
 });
-
-// ── Redirect result handler ──────────────────────────────────────────────────
-// Called on every page load. Returns null quickly when no redirect is pending;
-// resolves with a UserCredential when returning from a Google OAuth redirect.
-(async function handleRedirectResult() {
-  let result;
-  try {
-    result = await getRedirectResult(auth);
-  } catch (err) {
-    let tab = 'signin';
-    try { tab = sessionStorage.getItem('set_authRedirectTab') || tab; } catch { /* ignore */ }
-    try { sessionStorage.removeItem('set_authRedirectTab'); } catch { /* ignore */ }
-    openModal(tab);
-    showError(`${tab}-error`, friendlyError(err.code));
-    return;
-  }
-
-  try { sessionStorage.removeItem('set_authRedirectTab'); } catch { /* ignore */ }
-
-  if (!result) return; // Normal page load — no redirect was pending.
-
-  // Redirect completed. onAuthStateChanged fires automatically with the user.
-  // Clean up the pending game key in case we landed on a non-play page.
-  try { sessionStorage.removeItem('set_pendingGameRecord'); } catch { /* ignore */ }
-})();
 
 // ── Cross-module sign-in trigger ─────────────────────────────────────────────
 // play.js (and any future module) can open the sign-in modal without importing

@@ -132,12 +132,6 @@ function applyFilters() {
 
 // ── Filter pill interaction ───────────────────────────────────────────────────
 
-function setActivePill(container, value) {
-  container.querySelectorAll('.filter-pill').forEach(p => {
-    p.classList.toggle('active', p.dataset.value === value);
-  });
-}
-
 document.getElementById('history-filters').addEventListener('pointerdown', e => {
   e.preventDefault();
   const pill = e.target.closest('.filter-pill');
@@ -149,13 +143,17 @@ document.getElementById('history-filters').addEventListener('pointerdown', e => 
   filters[dimension] = value;
 
   // Mark active pill within this group
-  setActivePill(pill.closest('.filter-pills'), value);
+  pill.closest('.filter-pills').querySelectorAll('.filter-pill').forEach(p => {
+    p.classList.toggle('active', p === pill);
+  });
 
   // Outcome is irrelevant for solo-only view: hide it and reset to 'all'
   if (dimension === 'mode') {
     if (value === 'solo') {
       filters.outcome = 'all';
-      setActivePill(outcomeGroupEl, 'all');
+      outcomeGroupEl.querySelectorAll('.filter-pill').forEach(p => {
+        p.classList.toggle('active', p.dataset.value === 'all');
+      });
       outcomeGroupEl.classList.add('hidden');
     } else {
       outcomeGroupEl.classList.remove('hidden');
@@ -347,15 +345,14 @@ function formatMode(game) {
   return diff ? `vs CPU (${diff})` : 'vs CPU';
 }
 
-const OUTCOME_BADGE = {
-  win:  '<span class="outcome-badge outcome-win">Win</span>',
-  loss: '<span class="outcome-badge outcome-loss">Loss</span>',
-  tie:  '<span class="outcome-badge outcome-tie">Tie</span>',
-};
-
 function outcomeCell(game) {
   if (game.gameMode === 'solo') return '<span class="outcome-none">—</span>';
-  return OUTCOME_BADGE[game.outcome] ?? '<span class="outcome-none">—</span>';
+  const map = {
+    win:  '<span class="outcome-badge outcome-win">Win</span>',
+    loss: '<span class="outcome-badge outcome-loss">Loss</span>',
+    tie:  '<span class="outcome-badge outcome-tie">Tie</span>',
+  };
+  return map[game.outcome] ?? '<span class="outcome-none">—</span>';
 }
 
 // ── Utility ───────────────────────────────────────────────────────────────────

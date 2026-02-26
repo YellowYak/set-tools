@@ -118,7 +118,7 @@ function findAndDisplaySets() {
   const sets = findAllSets(boardCards);
 
   setsResultList.innerHTML = '';
-  resultsLabel.classList.remove('hidden');
+  resultsLabel.style.display = '';
 
   if (sets.length === 0) {
     const msg = document.createElement('p');
@@ -134,7 +134,7 @@ function findAndDisplaySets() {
 }
 
 function clearResults() {
-  resultsLabel.classList.add('hidden');
+  resultsLabel.style.display = 'none';
   setsResultList.innerHTML = '';
 }
 
