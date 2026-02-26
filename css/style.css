@@ -1223,6 +1223,10 @@ a {
   color: #f5e6c8;
 }
 
+.history-load-error {
+  color: #f08080;
+}
+
 /* ── Summary panel ── */
 .history-summary-panel {
   display: flex;

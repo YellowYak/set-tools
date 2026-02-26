@@ -69,13 +69,15 @@ async function loadHistory(uid) {
     }
 
     applyFilters();
+    updateSortIndicators();
     showOnly(signedInEl);
   } catch (err) {
     // Surface the Firebase index-creation URL in the console so the developer
     // can click it to set up the required composite index the first time.
     console.error('Failed to load game history:', err);
-    loadingEl.querySelector('p').textContent =
-      'Failed to load game history. Check the browser console for details.';
+    const p = loadingEl.querySelector('p');
+    p.textContent = 'Failed to load game history. Check the browser console for details.';
+    p.classList.add('history-load-error');
   }
 }
 
