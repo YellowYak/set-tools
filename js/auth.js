@@ -8,7 +8,7 @@
 
 import {
   onAuthStateChanged,
-  signInWithPopup, GoogleAuthProvider,
+  signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider,
   signInWithEmailAndPassword, createUserWithEmailAndPassword,
   sendPasswordResetEmail, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js';
@@ -234,13 +234,25 @@ function showSuccess(id, message) {
 
 // ── Google Sign-In ───────────────────────────────────────────────────────────
 
+// Handle the return from a signInWithRedirect flow (Safari / Firefox fallback).
+// getRedirectResult resolves immediately with null if there is no pending redirect.
+getRedirectResult(auth).catch(err => {
+  if (err.code !== 'auth/cancelled-popup-request') {
+    console.error('Google redirect sign-in error:', err.code, err.message);
+  }
+});
+
 async function handleGoogleSignIn(errorId) {
   try {
     await signInWithPopup(auth, googleProvider);
     closeModal();
   } catch (err) {
-    if (err.code !== 'auth/popup-closed-by-user' &&
-        err.code !== 'auth/cancelled-popup-request') {
+    if (err.code === 'auth/popup-blocked') {
+      // Safari and Firefox on iOS block popups from async handlers.
+      // Fall back to a full-page redirect; getRedirectResult above handles the return.
+      await signInWithRedirect(auth, googleProvider);
+    } else if (err.code !== 'auth/popup-closed-by-user' &&
+               err.code !== 'auth/cancelled-popup-request') {
       showError(errorId, friendlyError(err.code));
     }
   }
