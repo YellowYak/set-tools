@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Set — Solver</title>
+  <title>Multiplayer — Set</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
@@ -11,7 +11,7 @@
 </head>
 <body>
 
-<!-- ── Hidden SVG Defs ── -->
+<!-- ── Hidden SVG Defs (required by card-render.js) ── -->
 <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true">
 <defs>
   <pattern id="hatch-red" x="0" y="0" width="12" height="1.5" patternUnits="userSpaceOnUse">
@@ -36,54 +36,43 @@
   <nav class="site-nav" aria-label="Main navigation">
     <a href="index.html">Home</a>
     <a href="play.html">Play</a>
-    <a href="solve.html" class="active">Solve</a>
-    <a href="lobby.html">Multiplayer</a>
+    <a href="solve.html">Solve</a>
+    <a href="lobby.html" class="active">Multiplayer</a>
   </nav>
 </header>
 
 <!-- ── Page Content ── -->
 <main class="page-content">
 
-  <div class="solve-layout">
+  <!-- Score panel — populated dynamically, one .score-card per player -->
+  <div id="mp-score-panel" class="mp-score-panel" aria-live="polite" aria-label="Scores"></div>
 
-    <!-- ── Left column: board + results ── -->
-    <div>
-
-      <!-- Current board -->
-      <div class="solve-board-area">
-        <p class="section-label">Board <span id="board-count" style="color:#a8c8a0;font-weight:400;text-transform:none;letter-spacing:0">(0 cards)</span></p>
-
-        <div class="controls" style="margin-bottom:16px">
-          <button class="btn btn-primary" id="btn-random">Deal 12 Random</button>
-          <button class="btn btn-secondary" id="btn-find-sets">Find All Sets</button>
-          <button class="btn btn-secondary" id="btn-clear-board">Clear Board</button>
-        </div>
-
-        <div id="solve-board" class="solve-board" role="region" aria-label="Solver board">
-          <p class="solve-board-empty" id="board-empty-msg">No cards on the board yet. Pick cards from the panel, or deal a random hand.</p>
-        </div>
-      </div>
-
-      <!-- Sets results -->
-      <div id="results-area" style="margin-top:32px">
-        <p class="section-label" id="results-label" style="display:none">Sets Found</p>
-        <div id="sets-result-list" class="sets-result-list"></div>
-      </div>
-
-    </div>
-
-    <!-- ── Right column: card picker ── -->
-    <div class="card-picker-panel">
-      <p class="section-label">All 81 Cards <span style="color:#a8c8a0;font-weight:400;text-transform:none;letter-spacing:0;font-size:0.75rem">— click to add/remove</span></p>
-      <div id="card-picker" class="card-picker-grid" role="list" aria-label="Card library"></div>
-    </div>
-
+  <!-- Status bar: deck count + elapsed timer -->
+  <div class="controls mp-controls">
+    <span class="game-status" id="mp-status" aria-live="polite"></span>
+    <span class="game-status mp-timer" id="mp-timer" aria-label="Elapsed time"></span>
   </div>
+
+  <!-- Card board -->
+  <div id="board" role="region" aria-label="Game board"></div>
 
 </main>
 
-<script type="module" src="js/solve.js"></script>
+<!-- ── Game Over Modal ── -->
+<div class="modal-overlay hidden" id="modal-overlay"
+     role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal">
+    <h2 id="modal-title">Game Over</h2>
+    <p id="modal-result" style="color:#a8c8a0;font-size:1rem;margin-bottom:16px;font-style:italic"></p>
+    <div class="final-scores" id="modal-scores"></div>
+    <p id="modal-save-nudge" style="color:#88bb80;font-size:0.82rem;margin-top:12px;min-height:1.2em"></p>
+    <a href="lobby.html" class="btn btn-primary"
+       style="display:block;text-align:center;margin-top:24px">Back to Lobby</a>
+    <a href="index.html" class="modal-home-link">← Home</a>
+  </div>
+</div>
 
+<script type="module" src="js/multi-play.js"></script>
 <script type="module" src="js/auth.js"></script>
 </body>
 </html>
