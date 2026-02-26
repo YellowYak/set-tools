@@ -103,6 +103,9 @@ A **Set** is any three cards where, for each of the four features, the values ac
 ├── play.html               Game page
 ├── solve.html              Solver page
 ├── profile.html            User profile page
+├── firebase.json           Firebase Hosting configuration
+├── .firebaserc             Firebase project alias (set-card-game-ddd65)
+├── .gitignore              Ignores local Firebase cache (.firebase/)
 ├── css/
 │   └── style.css           All styles — layout, card states, animations
 ├── js/
