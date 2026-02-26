@@ -85,12 +85,34 @@ let extraCardsDealt = 0;  // number of times 3 extra cards were dealt (no set on
 let currentUser      = null;
 let pendingGameRecord = null; // held when game ends as guest; saved on sign-in
 
+// ── Redirect-auth pending-game persistence ───────────────────────────────────
+// signInWithRedirect navigates the page away and back, wiping in-memory state.
+// sessionStorage survives that navigation within the same tab.
+const PENDING_GAME_KEY = 'set_pendingGameRecord';
+
+function savePendingGameToSession(record) {
+  try { sessionStorage.setItem(PENDING_GAME_KEY, JSON.stringify(record)); }
+  catch { /* sessionStorage may be blocked in some private-browsing contexts */ }
+}
+
+function clearPendingGameFromSession() {
+  try { sessionStorage.removeItem(PENDING_GAME_KEY); } catch { /* ignore */ }
+}
+
+function loadPendingGameFromSession() {
+  try {
+    const raw = sessionStorage.getItem(PENDING_GAME_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
 onAuthStateChanged(auth, user => {
   currentUser = user;
   // If the user signs in while a completed game is waiting to be saved, do it now.
   if (user && pendingGameRecord) {
     const record    = pendingGameRecord;
     pendingGameRecord = null;
+    clearPendingGameFromSession();
     const nudgeEl   = document.getElementById('modal-save-nudge');
     if (nudgeEl) nudgeEl.innerHTML = '';
     saveGame({ ...record, uid: user.uid })
@@ -168,6 +190,7 @@ function startGame() {
   mistakeCount = 0;
   extraCardsDealt = 0;
   pendingGameRecord = null;
+  clearPendingGameFromSession();
 
   boardEl.innerHTML = '';
   updateScoreDisplay();
@@ -534,9 +557,10 @@ function showHint() {
     hintsUsed++;
 
     const remaining = 3 - hintStep;
-    showToast(remaining > 0
+    const toastMsg = remaining > 0
       ? `${remaining} ${pluralize(remaining, 'card')} still hidden — click Hint again`
-      : 'All three cards of the Set are highlighted.');
+      : 'All three cards of the Set are highlighted.';
+    showToast(toastMsg);
   } else {
     showToast('All three cards of the Set are highlighted.');
   }
@@ -707,6 +731,7 @@ function showGameOver() {
       .catch(() => { /* fail silently */ });
   } else {
     pendingGameRecord = gameRecord; // saved by onAuthStateChanged if user signs in
+    savePendingGameToSession(gameRecord);
     nudgeEl.innerHTML = `
       <div class="save-nudge">
         Sign in to save your results
@@ -762,9 +787,9 @@ function updateStatus() {
 // ── Timer ─────────────────────────────────────────────────────
 function formatTime(ms) {
   const totalSec = Math.floor(ms / 1000);
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
+  const minutes = Math.floor(totalSec / 60);
+  const seconds = totalSec % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
 function startTimerInterval() {
@@ -884,4 +909,12 @@ document.addEventListener('keydown', e => {
 });
 
 // ── Start ────────────────────────────────────────────────────
+
+// Restore pending game record if the user was redirected to Google from this
+// page. The in-memory pendingGameRecord is null after a page reload, but
+// sessionStorage survives the redirect. onAuthStateChanged (above) will save
+// it to Firestore once Firebase resolves the returning user's session.
+const restoredGame = loadPendingGameFromSession();
+if (restoredGame) pendingGameRecord = restoredGame;
+
 showModeModal();
