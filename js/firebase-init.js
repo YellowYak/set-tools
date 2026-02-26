@@ -11,7 +11,7 @@ import { getDatabase }    from 'https://www.gstatic.com/firebasejs/10.14.0/fireb
 
 const firebaseConfig = {
   apiKey:            'AIzaSyCDxnbpchJomX9IPvz4ZQmuF6LzXTStPDU',
-  authDomain:        'set-card-game-ddd65.firebaseapp.com',
+  authDomain:        'set-card-game-ddd65.web.app',
   projectId:         'set-card-game-ddd65',
   storageBucket:     'set-card-game-ddd65.firebasestorage.app',
   messagingSenderId: '546340267398',
