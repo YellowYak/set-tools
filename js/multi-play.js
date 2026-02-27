@@ -14,7 +14,7 @@ import {
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js';
 import { auth, rtdb }    from './firebase-init.js';
 import { createDeck }    from './deck.js';
-import { isSet, hasSet } from './set-logic.js';
+import { isSet, hasSet, findAllSets } from './set-logic.js';
 import { createCardEl }  from './card-render.js';
 import { saveMultiplayerGame } from './db.js';
 import { getPlayerId, getDisplayName } from './guest-identity.js';
@@ -37,12 +37,12 @@ let busy         = false;  // true while a runTransaction is in-flight
 let gameSaved    = false;  // guard against saving the same game twice
 
 let prevBoardSet = new Set();   // canonical indices rendered in the previous frame
+let prevScores   = null;        // null = not yet initialized; populated on first state update
 let timerInterval = null;
 
 // ─── DOM references ───────────────────────────────────────────────────────────
 const scorePanelEl = document.getElementById('mp-score-panel');
 const statusEl     = document.getElementById('mp-status');
-const timerEl      = document.getElementById('mp-timer');
 const boardEl      = document.getElementById('board');
 const modalOverlay = document.getElementById('modal-overlay');
 const modalResult  = document.getElementById('modal-result');
@@ -76,9 +76,10 @@ if (!gameId) {
 function handleStateUpdate(newState) {
   gameState = newState;
 
+  checkScoreChanges(newState.players ?? {});
   renderScorePanel(newState.players ?? {});
   renderBoard(newState.board ?? []);
-  updateStatus(newState);
+  updateStatusBar();
 
   if (newState.status === 'playing') {
     startTimer(newState.startedAt);
@@ -92,12 +93,35 @@ function handleStateUpdate(newState) {
   }
 }
 
+// ─── Score change detection ───────────────────────────────────────────────────
+
+function checkScoreChanges(players) {
+  if (prevScores === null) {
+    // First update — record baseline scores, don't fire toasts
+    prevScores = {};
+    for (const [pid, p] of Object.entries(players)) {
+      prevScores[pid] = p.score || 0;
+    }
+    return;
+  }
+
+  for (const [pid, p] of Object.entries(players)) {
+    if (pid === playerId) continue; // own set already toasted in attemptClaimSet
+    const newScore = p.score || 0;
+    const oldScore = prevScores[pid] ?? 0;
+    if (newScore > oldScore) {
+      showToast(`${p.name} found a Set!`, 2800);
+    }
+    prevScores[pid] = newScore;
+  }
+}
+
 // ─── Score panel ─────────────────────────────────────────────────────────────
 
 function renderScorePanel(players) {
   const entries = Object.entries(players).sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
 
-  scorePanelEl.style.gridTemplateColumns = `repeat(${entries.length}, 1fr)`;
+  scorePanelEl.style.gridTemplateColumns = `repeat(${entries.length}, auto)`;
   scorePanelEl.innerHTML = '';
 
   for (const [pid, p] of entries) {
@@ -161,15 +185,24 @@ function dealInCard(el, delayMs) {
 
 // ─── Status bar ───────────────────────────────────────────────────────────────
 
-function updateStatus(state) {
+function updateStatusBar() {
+  if (!gameState) return;
+  const state       = gameState;
   const board       = state.board ?? [];
   const deckPointer = state.deckPointer ?? 81;
   const remaining   = 81 - deckPointer;
 
   if (state.status === 'playing') {
-    statusEl.textContent = remaining > 0
+    const elapsed    = state.startedAt ? Math.floor((Date.now() - state.startedAt) / 1000) : 0;
+    const mins       = Math.floor(elapsed / 60);
+    const secs       = elapsed % 60;
+    const timerPart  = `${mins}:${secs.toString().padStart(2, '0')}`;
+    const boardCards = board.map(i => CANONICAL_DECK[i]);
+    const setCount   = findAllSets(boardCards).length;
+    const deckPart   = remaining > 0
       ? `${remaining} card${remaining !== 1 ? 's' : ''} in deck`
       : 'Deck empty';
+    statusEl.textContent = `${timerPart} · ${deckPart} · ${setCount} set${setCount !== 1 ? 's' : ''} on board`;
   } else if (state.status === 'finished') {
     statusEl.textContent = 'Game over';
   }
@@ -179,12 +212,7 @@ function updateStatus(state) {
 
 function startTimer(startedAt) {
   if (timerInterval || !startedAt) return;
-  timerInterval = setInterval(() => {
-    const elapsed = Math.floor((Date.now() - startedAt) / 1000);
-    const mins    = Math.floor(elapsed / 60);
-    const secs    = elapsed % 60;
-    timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
-  }, 1000);
+  timerInterval = setInterval(updateStatusBar, 1000);
 }
 
 function stopTimer() {

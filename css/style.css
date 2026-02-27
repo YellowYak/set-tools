@@ -1672,11 +1672,12 @@ a {
    ============================================================ */
 
 /* Score panel overrides for variable player count.
-   grid-template-columns is set inline by JS to repeat(N, 1fr). */
+   grid-template-columns is set inline by JS to repeat(N, auto). */
 .mp-score-panel {
   display: grid;
   gap: 12px;
   margin-bottom: 20px;
+  justify-content: center;
 }
 
 /* Highlight the current player's score card */
@@ -1685,9 +1686,9 @@ a {
   background: rgba(37, 99, 235, 0.12);
 }
 
-/* Controls row — status + timer aligned to opposite ends */
+/* Controls row — single status line, right-aligned */
 .mp-controls {
-  justify-content: space-between;
+  justify-content: flex-end;
   margin-bottom: 20px;
 }
 
