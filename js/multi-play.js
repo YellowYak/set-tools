@@ -17,7 +17,7 @@ import { createDeck }    from './deck.js';
 import { isSet, hasSet, findAllSets } from './set-logic.js';
 import { createCardEl }  from './card-render.js';
 import { saveMultiplayerGame } from './db.js';
-import { getPlayerId, getDisplayName } from './guest-identity.js';
+import { getPlayerId } from './guest-identity.js';
 
 // ─── Canonical deck (deterministic — createDeck() always returns the same 81 cards) ──
 const CANONICAL_DECK = createDeck();
@@ -29,7 +29,6 @@ const gameId = params.get('game');
 // Seed identity from cached auth (may be null; onAuthStateChanged will update)
 let currentUser = auth.currentUser;
 let playerId    = getPlayerId(currentUser);
-let playerName  = getDisplayName(currentUser);
 
 let gameState    = null;   // latest /games/{gameId} snapshot value
 let selected     = [];     // board positions selected locally (never written to RTDB)
@@ -60,7 +59,6 @@ const penaltyCountdownEl = document.getElementById('penalty-countdown');
 onAuthStateChanged(auth, user => {
   currentUser = user;
   playerId    = getPlayerId(user);
-  playerName  = getDisplayName(user);
 });
 
 // ─── Entry point ──────────────────────────────────────────────────────────────

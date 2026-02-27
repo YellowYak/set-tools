@@ -44,7 +44,8 @@ const modalMode          = document.getElementById('modal-mode');
 const modalDifficulty    = document.getElementById('modal-difficulty');
 const btnSolo            = document.getElementById('btn-solo');
 const btnVsComputer      = document.getElementById('btn-vs-computer');
-const btnBackToMode      = document.getElementById('btn-back-to-mode');
+const btnBackToMode          = document.getElementById('btn-back-to-mode');
+const computerDifficultyEl   = document.getElementById('computer-difficulty');
 
 // ── Game Mode Constants ─────────────────────────────────────
 const MODE_SOLO        = 'solo';
@@ -157,8 +158,7 @@ function startGame() {
   btnHint.classList.toggle('hidden', gameMode !== MODE_SOLO);
   btnShowSets.classList.toggle('hidden', gameMode !== MODE_SOLO);
   scoreComputerCardEl.classList.toggle('hidden', gameMode !== MODE_VS_COMPUTER);
-  document.getElementById('computer-difficulty').textContent =
-    gameMode === MODE_VS_COMPUTER ? difficulty : '';
+  computerDifficultyEl.textContent = gameMode === MODE_VS_COMPUTER ? difficulty : '';
 
   paused = false;
   pausedElapsed = 0;
