@@ -13,7 +13,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js';
 import { auth, rtdb }    from './firebase-init.js';
-import { createDeck }    from './deck.js';
+import { createDeck, pluralize } from './deck.js';
 import { isSet, hasSet, findAllSets } from './set-logic.js';
 import { createCardEl }  from './card-render.js';
 import { saveMultiplayerGame } from './db.js';
@@ -213,9 +213,9 @@ function updateStatusBar() {
     const boardCards = board.map(i => CANONICAL_DECK[i]);
     const setCount   = findAllSets(boardCards).length;
     const deckPart   = remaining > 0
-      ? `${remaining} card${remaining !== 1 ? 's' : ''} in deck`
+      ? `${remaining} ${pluralize(remaining, 'card')} in deck`
       : 'Deck empty';
-    statusEl.textContent = `${timerPart} · ${deckPart} · ${setCount} set${setCount !== 1 ? 's' : ''} on board`;
+    statusEl.textContent = `${timerPart} · ${deckPart} · ${setCount} ${pluralize(setCount, 'set')} on board`;
   } else if (state.status === 'finished') {
     statusEl.textContent = 'Game over';
   }
@@ -495,5 +495,4 @@ async function showGameOver(state) {
   }
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 

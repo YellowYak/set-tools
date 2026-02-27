@@ -1532,6 +1532,32 @@ a {
   display: none;
 }
 
+/* ── Private-game checkbox ── */
+.lobby-private-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #a8c8a0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.lobby-private-option input[type="checkbox"] {
+  accent-color: #88bb80;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+/* ── Private-game notice in the waiting room ── */
+.lobby-private-notice {
+  font-size: 0.82rem;
+  color: #a8c8a0;
+  font-style: italic;
+  margin-top: 8px;
+}
+
 /* ── Join row ── */
 .lobby-join-row {
   display: flex;

@@ -19,6 +19,7 @@ import { createCardEl, renderSetList } from './card-render.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js';
 import { auth } from './firebase-init.js';
 import { saveGame } from './db.js';
+import { showToast } from './utils.js';
 
 // ── DOM References ──────────────────────────────────────────
 const boardEl            = document.getElementById('board');
@@ -479,32 +480,6 @@ function handleError(els) {
     selected = [];
     busy = false;
   }, ERROR_FLASH_MS);
-}
-
-// ── Toast ─────────────────────────────────────────────────────
-let toastContainer = null;
-
-/**
- * Display a brief toast message at the bottom of the screen.
- * @param {string} message
- * @param {number} duration  ms before the toast fades out
- */
-function showToast(message, duration = 2800) {
-  if (!toastContainer) {
-    toastContainer = document.createElement('div');
-    toastContainer.id = 'toast-container';
-    document.body.appendChild(toastContainer);
-  }
-
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.textContent = message;
-  toastContainer.appendChild(toast);
-
-  setTimeout(() => {
-    toast.classList.add('hiding');
-    toast.addEventListener('animationend', () => toast.remove(), { once: true });
-  }, duration);
 }
 
 // ── Hint ─────────────────────────────────────────────────────

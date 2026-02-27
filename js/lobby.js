@@ -44,15 +44,17 @@ const noGamesEl       = document.getElementById('lobby-no-games');
 const refreshBtn      = document.getElementById('btn-refresh');
 const createError     = document.getElementById('create-error');
 
-const waitingSection  = document.getElementById('lobby-waiting');
-const waitingTitle    = document.getElementById('waiting-title');
-const linkDisplay     = document.getElementById('lobby-link-display');
-const copyLinkBtn     = document.getElementById('btn-copy-link');
-const playerListEl    = document.getElementById('lobby-player-list');
-const startBtn        = document.getElementById('btn-start-game');
-const leaveBtn        = document.getElementById('btn-leave-game');
-const waitingMsg      = document.getElementById('lobby-waiting-msg');
-const startError      = document.getElementById('lobby-start-error');
+const waitingSection     = document.getElementById('lobby-waiting');
+const waitingTitle       = document.getElementById('waiting-title');
+const linkDisplay        = document.getElementById('lobby-link-display');
+const copyLinkBtn        = document.getElementById('btn-copy-link');
+const playerListEl       = document.getElementById('lobby-player-list');
+const startBtn           = document.getElementById('btn-start-game');
+const leaveBtn           = document.getElementById('btn-leave-game');
+const waitingMsg         = document.getElementById('lobby-waiting-msg');
+const startError         = document.getElementById('lobby-start-error');
+const gamePrivateToggle  = document.getElementById('game-private-toggle');
+const lobbyPrivateNotice = document.getElementById('lobby-private-notice');
 
 // ─── Auth init ────────────────────────────────────────────────────────────────
 
@@ -201,6 +203,8 @@ async function createGame(maxPlayers) {
   createBtn.disabled = true;
   createError.classList.add('hidden');
 
+  const isPrivate = gamePrivateToggle.checked;
+
   try {
     // Build a shuffled deck of indices and deal the first 12 cards,
     // extending by 3 at a time until at least one Set is on the board.
@@ -219,6 +223,7 @@ async function createGame(maxPlayers) {
 
     await set(gameRef, {
       status:          'waiting',
+      isPrivate,
       maxPlayers,
       hostId:          playerId,
       shuffledIndices,
@@ -237,21 +242,24 @@ async function createGame(maxPlayers) {
       winnerId:   null,
     });
 
-    await set(lobbyRef, {
-      id:          gameId,
-      status:      'waiting',
-      maxPlayers,
-      playerCount: 1,
-      hostId:      playerId,
-      hostName:    playerName,
-      createdAt:   Date.now(),
-    });
+    // Private games are not listed publicly — skip the lobby entry entirely.
+    if (!isPrivate) {
+      await set(lobbyRef, {
+        id:          gameId,
+        status:      'waiting',
+        maxPlayers,
+        playerCount: 1,
+        hostId:      playerId,
+        hostName:    playerName,
+        createdAt:   Date.now(),
+      });
+      onDisconnect(lobbyRef).remove();
+    }
 
     // If this tab closes before the game starts, clean up the whole game node
-    // and lobby entry (cancelled in startGame once the game is underway).
+    // (cancelled in startGame once the game is underway).
     onDisconnect(gameRef).remove();
     onDisconnect(ref(rtdb, `games/${gameId}/players/${playerId}/connected`)).set(false);
-    onDisconnect(lobbyRef).remove();
 
     currentGameId = gameId;
     enterWaitingRoom(gameId);
@@ -376,6 +384,7 @@ function renderWaitingRoom(game, gameId) {
   const iAmHost     = game.hostId === playerId;
 
   waitingTitle.textContent = `Waiting for Players (${playerCount} / ${game.maxPlayers})`;
+  lobbyPrivateNotice.classList.toggle('hidden', !game.isPrivate);
 
   // Player list
   playerListEl.innerHTML = '';

@@ -53,7 +53,7 @@ A **Set** is any three cards where, for each of the four features, the values ac
 Multiplayer games are hosted and synchronized via Firebase Realtime Database. Any number of tabs / devices can play in the same game simultaneously.
 
 **Lobby (`lobby.html`)**
-- **Create a game** — host picks a player count (2, 3, or 4), which generates and stores a shuffled deck in Firebase. The game appears in the public game list and a shareable `?game=` link is displayed
+- **Create a game** — host picks a player count (2, 3, or 4) and optionally marks the game **Private (invite-only)**. Public games appear in the Open Games list; private games are hidden from the list and can only be joined via the shareable `?game=` link displayed in the waiting room
 - **Join a game** — browse the public list or paste a game link; joining is available until the host starts the game
 - **Waiting room** — shows all connected players; host's Start button becomes active only when all seats are filled
 - **Guest play** — no sign-in required. Guests are assigned a persistent identity (`localStorage` UUID) and prompted once to choose a display name

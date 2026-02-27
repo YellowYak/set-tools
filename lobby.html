@@ -64,6 +64,9 @@
             </label>
           </div>
         </div>
+        <label class="lobby-private-option" for="game-private-toggle">
+          <input type="checkbox" id="game-private-toggle"> Private (invite-only)
+        </label>
         <button class="btn btn-primary" id="btn-create-game">Create Game</button>
       </div>
       <p class="auth-error hidden" id="create-error"></p>
@@ -104,6 +107,9 @@
                type="text" readonly aria-label="Invite link">
         <button class="btn btn-secondary" id="btn-copy-link">Copy</button>
       </div>
+      <p class="lobby-private-notice hidden" id="lobby-private-notice">
+        Private game — players must use the link above to join. This game does not appear in the public lobby.
+      </p>
     </div>
 
     <!-- Player list -->
