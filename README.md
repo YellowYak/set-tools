@@ -26,6 +26,8 @@ Any static file server will do (VS Code Live Server, `npx serve`, etc.).
 | `index.html` | Landing page with rules summary and navigation |
 | `play.html` | Play the game — single player or vs Computer, full game loop |
 | `solve.html` | Board builder and Set solver — add any cards, find all Sets |
+| `lobby.html` | Multiplayer lobby — create or join real-time online games |
+| `multi-play.html` | Multiplayer game board — real-time synchronized play via Firebase |
 | `profile.html` | User profile — edit display name, change password (email/password accounts) |
 | `history.html` | Game history — paginated, filterable, sortable table of past games with aggregate stats |
 
@@ -45,6 +47,27 @@ A **Set** is any three cards where, for each of the four features, the values ac
 **Standard play:** 12 cards are dealt face-up. Find a Set, select those three cards — they're removed and replaced from the deck. If no Set exists on the board, three extra cards are added. The game ends when the deck is exhausted and no Sets remain.
 
 ## Features
+
+### Multiplayer (online real-time)
+
+Multiplayer games are hosted and synchronized via Firebase Realtime Database. Any number of tabs / devices can play in the same game simultaneously.
+
+**Lobby (`lobby.html`)**
+- **Create a game** — host picks a player count (2, 3, or 4) and optionally marks the game **Private (invite-only)**. Public games appear in the Open Games list; private games are hidden from the list and can only be joined via the shareable `?game=` link displayed in the waiting room
+- **Join a game** — browse the public list or paste a game link; joining is available until the host starts the game
+- **Waiting room** — shows all connected players; host's Start button becomes active only when all seats are filled
+- **Guest play** — no sign-in required. Guests are assigned a persistent identity (`localStorage` UUID) and prompted once to choose a display name
+- **Presence** — `onDisconnect` hooks clean up player slots and the public listing if a player's tab closes unexpectedly
+
+**Game board (`multi-play.html`)**
+- All players see an identical board derived from the same server-stored shuffle
+- Selecting three cards submits an atomic RTDB `runTransaction` — the first valid claim wins; concurrent claims from other players are safely rejected
+- Selecting 1–2 cards is local only — opponents never see your in-progress selection
+- Score panel shows every player's score, updating live; your own card is highlighted in blue
+- Invalid selections flash red and trigger an escalating lockout penalty (2 s for the first mistake, +1 s each consecutive mistake); a full-screen red tint and countdown banner make the penalty clear. The counter resets to 2 s whenever any player finds a Set
+- Extra cards are dealt automatically (via transaction) when no Set remains on the board
+- Game over when the deck is exhausted and no Sets remain; a modal shows the final ranking
+- Completed games are saved to Firestore history for all signed-in players
 
 ### Authentication (all pages)
 - **Sign In** button in the nav on every page — anonymous play is always available with no account required
@@ -100,32 +123,41 @@ A **Set** is any three cards where, for each of the four features, the values ac
 ```
 /
 ├── index.html              Landing page
-├── play.html               Game page
+├── play.html               Game page (solo / vs Computer)
 ├── solve.html              Solver page
+├── lobby.html              Multiplayer lobby — create / join / waiting room
+├── multi-play.html         Multiplayer game board — real-time RTDB sync
 ├── profile.html            User profile page
+├── history.html            Game history page
 ├── firebase.json           Firebase Hosting configuration
 ├── .firebaserc             Firebase project alias (set-card-game-ddd65)
 ├── .gitignore              Ignores local Firebase cache (.firebase/)
 ├── css/
-│   └── style.css           All styles — layout, card states, animations
+│   └── style.css           All styles — layout, card states, animations, lobby/multiplayer UI
 ├── js/
 │   ├── deck.js             Card data model, createDeck(), shuffle()
 │   ├── set-logic.js        isSet(), findAllSets(), hasSet()
 │   ├── card-render.js      createCardEl(), renderSetList() — DOM card builders
-│   ├── play.js             Game loop, animations, hint system
+│   ├── play.js             Solo/vs-Computer game loop, animations, hint system
 │   ├── solve.js            Board builder and solver UI
+│   ├── lobby.js            Multiplayer lobby — create, join, waiting room, presence
+│   ├── multi-play.js       Multiplayer board — RTDB sync, atomic Set claims, game-over
+│   ├── guest-identity.js   localStorage-backed guest player identity (ID + display name)
 │   ├── auth.js             Firebase Authentication — sign-in widget and modal
 │   ├── profile.js          Profile page — display name and password updates
 │   ├── history.js          History page — loads, filters, sorts, and paginates game records
-│   ├── firebase-init.js    Firebase app singleton (shared by auth.js and db.js)
-│   └── db.js               Firestore helpers — saveGame() and getGames()
+│   ├── firebase-init.js    Firebase app singleton — exports app, auth, and rtdb
+│   ├── db.js               Firestore helpers — saveGame(), saveMultiplayerGame(), getGames()
+│   └── utils.js            Shared UI helpers — showToast(), escHtml()
 └── assets/
     └── set-card-prototype.html   Visual reference for SVG shapes and fills
 ```
 
 ## Technical Notes
 
-- **Firebase Authentication + Firestore** — loaded via the official Firebase CDN ESM; no bundler needed. Firestore uses the Lite SDK (`firebase-firestore-lite`) which issues plain REST requests rather than a WebChannel, avoiding compatibility issues with browser privacy extensions
+- **Firebase Authentication + Firestore Lite + Realtime Database** — all loaded via the official Firebase CDN ESM; no bundler needed. Firestore uses the Lite SDK (`firebase-firestore-lite`) which issues plain REST requests rather than a WebChannel, avoiding compatibility issues with browser privacy extensions. The Realtime Database (RTDB) uses WebSockets for push-based sync in multiplayer games; it is a separate Firebase product exported as `rtdb` from `firebase-init.js`
+- **Multiplayer concurrency** — all Set claims go through an RTDB `runTransaction` on the entire game node; the first valid commit wins atomically and all others abort safely. Board state is never stored as card objects — only a server-stored `shuffledIndices` permutation (0–80) plus per-client `createDeck()` (deterministic) keep every client in sync without redundant data
+- **Guest identity** — players who aren't signed in receive a persistent `localStorage` UUID (`guest_{16hex}`) and are prompted once to choose a display name; identity survives page refreshes and navigation within the same browser
 - **No other dependencies** — vanilla ES6 modules (`type="module"`), no npm, no build step
 - **SVG card rendering** — shapes (`#oval`, `#diamond`, `#squiggle`) and hatch fill patterns (`#hatch-red`, `#hatch-green`, `#hatch-purple`) are defined once per page in an inline `<svg><defs>` block; cards reference them with `<use href="#shape">`
 - **Card DOM structure** — each card is a `<div class="card">` with `data-color`, `data-shape`, `data-count`, `data-fill` attributes and an `aria-label` (e.g. `"2 red striped ovals"`)
