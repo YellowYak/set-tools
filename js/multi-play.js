@@ -89,7 +89,9 @@ function handleStateUpdate(newState) {
   if (newState.status === 'playing') {
     startTimer(newState.startedAt);
     // Any client can trigger the extra-deal if there's no set on board
-    ensureSetOnBoard();
+    if (!hasSet((newState.board ?? []).map(i => CANONICAL_DECK[i]))) {
+      ensureSetOnBoard();
+    }
   }
 
   if (newState.status === 'finished') {
@@ -465,7 +467,7 @@ async function showGameOver(state) {
   if (winnerId === playerId) {
     modalResult.textContent = 'You win!';
   } else if (winnerId) {
-    modalResult.textContent = `${escHtml(players[winnerId]?.name ?? 'Someone')} wins!`;
+    modalResult.textContent = `${players[winnerId]?.name ?? 'Someone'} wins!`;
   } else {
     modalResult.textContent = "It's a tie!";
   }

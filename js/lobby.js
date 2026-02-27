@@ -340,8 +340,11 @@ async function joinGame(gameId) {
     }
 
     // Transaction committed: update the lobby player count (best-effort) and proceed.
+    // Private games have no lobby entry — updating a missing RTDB path would create one.
     const newCount = Object.keys(result.val().players).length;
-    await update(ref(rtdb, `lobbies/${gameId}`), { playerCount: newCount });
+    if (!result.val().isPrivate) {
+      await update(ref(rtdb, `lobbies/${gameId}`), { playerCount: newCount });
+    }
 
     onDisconnect(ref(rtdb, `games/${gameId}/players/${playerId}/connected`)).set(false);
 
@@ -457,9 +460,10 @@ async function leaveGame(gameId) {
     await onDisconnect(ref(rtdb, `games/${gameId}/players/${playerId}/connected`)).cancel();
     await remove(ref(rtdb, `games/${gameId}/players/${playerId}`));
 
-    // Host leaving: remove the lobby entry entirely
+    // Host leaving: cancel the pre-start game-node cleanup hook and remove lobby entry
     const gameSnap = await get(ref(rtdb, `games/${gameId}`));
     if (gameSnap.exists() && gameSnap.val().hostId === playerId) {
+      await onDisconnect(ref(rtdb, `games/${gameId}`)).cancel();
       await remove(ref(rtdb, `lobbies/${gameId}`));
     } else {
       // Non-host: decrement the lobby player count (or remove if last)
