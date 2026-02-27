@@ -10,6 +10,7 @@
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js';
 import { auth } from './firebase-init.js';
 import { getGames } from './db.js';
+import { escHtml } from './utils.js';
 
 const PAGE_SIZE = 10;
 
@@ -378,10 +379,3 @@ function showOnly(el) {
   el.classList.remove('hidden');
 }
 
-function escHtml(str) {
-  return String(str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}

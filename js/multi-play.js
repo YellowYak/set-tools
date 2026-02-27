@@ -18,6 +18,7 @@ import { isSet, hasSet, findAllSets } from './set-logic.js';
 import { createCardEl }  from './card-render.js';
 import { saveMultiplayerGame } from './db.js';
 import { getPlayerId } from './guest-identity.js';
+import { showToast, escHtml } from './utils.js';
 
 // ─── Canonical deck (deterministic — createDeck() always returns the same 81 cards) ──
 const CANONICAL_DECK = createDeck();
@@ -406,7 +407,7 @@ function applyPenalty(positions) {
   const penaltySeconds = nextPenaltySecs;
   nextPenaltySecs++;
 
-  // 1. Flash the cards red (fix: use flash-error, not error)
+  // 1. Flash the cards red
   const cardEls = Array.from(boardEl.children);
   positions.forEach(pos => cardEls[pos]?.classList.add('flash-error'));
   setTimeout(() => {
@@ -496,27 +497,3 @@ async function showGameOver(state) {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function showToast(message, duration = 2800) {
-  let container = document.getElementById('toast-container');
-  if (!container) {
-    container = document.createElement('div');
-    container.id = 'toast-container';
-    document.body.appendChild(container);
-  }
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.textContent = message;
-  container.appendChild(toast);
-  setTimeout(() => {
-    toast.classList.add('hiding');
-    toast.addEventListener('animationend', () => toast.remove(), { once: true });
-  }, duration);
-}
-
-function escHtml(str) {
-  return String(str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}

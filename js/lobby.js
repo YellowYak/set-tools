@@ -6,7 +6,7 @@
  */
 
 import {
-  ref, push, set, get, update, onValue, remove, onDisconnect,
+  ref, push, set, get, update, onValue, remove, onDisconnect, runTransaction,
 } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js';
 import { auth, rtdb }         from './firebase-init.js';
@@ -15,6 +15,7 @@ import { hasSet }              from './set-logic.js';
 import {
   getPlayerId, getDisplayName, getGuestName, setGuestName,
 } from './guest-identity.js';
+import { showToast, escHtml } from './utils.js';
 
 // ─── Canonical deck (deterministic, never mutated) ────────────────────────────
 const CANONICAL_DECK = createDeck();
@@ -207,8 +208,9 @@ async function createGame(maxPlayers) {
     let deckPointer = 12;
     let board = shuffledIndices.slice(0, 12);
     while (!hasSet(board.map(i => CANONICAL_DECK[i])) && deckPointer < 81) {
-      board = [...board, shuffledIndices[deckPointer]];
-      deckPointer++;
+      const toAdd = Math.min(3, 81 - deckPointer);
+      board = [...board, ...shuffledIndices.slice(deckPointer, deckPointer + toAdd)];
+      deckPointer += toAdd;
     }
 
     const gameRef  = push(ref(rtdb, 'games'));
@@ -245,7 +247,9 @@ async function createGame(maxPlayers) {
       createdAt:   Date.now(),
     });
 
-    // If this tab closes before the game starts, clean up presence
+    // If this tab closes before the game starts, clean up the whole game node
+    // and lobby entry (cancelled in startGame once the game is underway).
+    onDisconnect(gameRef).remove();
     onDisconnect(ref(rtdb, `games/${gameId}/players/${playerId}/connected`)).set(false);
     onDisconnect(lobbyRef).remove();
 
@@ -266,17 +270,48 @@ async function joinGame(gameId) {
   if (!gameId) return;
 
   try {
-    const snap = await get(ref(rtdb, `games/${gameId}`));
-    if (!snap.exists()) {
-      showToast('Game not found.');
-      return;
-    }
+    // Use a transaction so concurrent joins can't exceed maxPlayers.
+    // The callback may run multiple times; keep it pure (no side effects).
+    let rejectionReason = null; // set inside the callback to explain aborts
+    let alreadyInGame   = false;
 
-    const game    = snap.val();
-    const players = game.players ?? {};
+    const result = await runTransaction(ref(rtdb, `games/${gameId}`), currentData => {
+      // First invocation may receive null before Firebase fetches real data.
+      if (currentData === null) return currentData;
 
-    // Already registered in this game (e.g. page refresh) — re-enter waiting room
-    if (players[playerId]) {
+      const players = currentData.players ?? {};
+
+      // Already registered (e.g. page refresh) — reconnect without modifying.
+      if (players[playerId]) {
+        alreadyInGame = true;
+        return currentData;
+      }
+
+      if (currentData.status !== 'waiting') {
+        rejectionReason = 'started';
+        return; // abort
+      }
+
+      const count = Object.keys(players).length;
+      if (count >= currentData.maxPlayers) {
+        rejectionReason = 'full';
+        return; // abort
+      }
+
+      currentData.players = {
+        ...players,
+        [playerId]: {
+          name:      playerName,
+          uid:       currentUser?.uid ?? null,
+          score:     0,
+          connected: true,
+        },
+      };
+      return currentData;
+    });
+
+    if (alreadyInGame) {
+      // Reconnect path: just mark connected and re-enter the waiting room.
       await update(ref(rtdb, `games/${gameId}/players/${playerId}`), { connected: true });
       onDisconnect(ref(rtdb, `games/${gameId}/players/${playerId}/connected`)).set(false);
       currentGameId = gameId;
@@ -284,24 +319,21 @@ async function joinGame(gameId) {
       return;
     }
 
-    if (game.status !== 'waiting') {
-      showToast('That game has already started.');
+    if (!result.exists()) {
+      showToast('Game not found.');
       return;
     }
 
-    const playerCount = Object.keys(players).length;
-    if (playerCount >= game.maxPlayers) {
-      showToast('That game is full.');
+    if (!result.committed) {
+      if (rejectionReason === 'started') showToast('That game has already started.');
+      else if (rejectionReason === 'full') showToast('That game is full.');
+      else showToast('Could not join — please try again.');
       return;
     }
 
-    await update(ref(rtdb, `games/${gameId}/players/${playerId}`), {
-      name:      playerName,
-      uid:       currentUser?.uid ?? null,
-      score:     0,
-      connected: true,
-    });
-    await update(ref(rtdb, `lobbies/${gameId}`), { playerCount: playerCount + 1 });
+    // Transaction committed: update the lobby player count (best-effort) and proceed.
+    const newCount = Object.keys(result.val().players).length;
+    await update(ref(rtdb, `lobbies/${gameId}`), { playerCount: newCount });
 
     onDisconnect(ref(rtdb, `games/${gameId}/players/${playerId}/connected`)).set(false);
 
@@ -389,6 +421,8 @@ async function startGame(gameId) {
   startError.classList.add('hidden');
 
   try {
+    // Cancel the pre-start game-node cleanup now that the game is live
+    await onDisconnect(ref(rtdb, `games/${gameId}`)).cancel();
     await update(ref(rtdb, `games/${gameId}`), {
       status:    'playing',
       startedAt: Date.now(),
@@ -461,27 +495,3 @@ function copyShareLink() {
   });
 }
 
-function showToast(message, duration = 2800) {
-  let container = document.getElementById('toast-container');
-  if (!container) {
-    container = document.createElement('div');
-    container.id = 'toast-container';
-    document.body.appendChild(container);
-  }
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.textContent = message;
-  container.appendChild(toast);
-  setTimeout(() => {
-    toast.classList.add('hiding');
-    toast.addEventListener('animationend', () => toast.remove(), { once: true });
-  }, duration);
-}
-
-function escHtml(str) {
-  return String(str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
