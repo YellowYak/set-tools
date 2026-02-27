@@ -52,6 +52,12 @@
     <span class="game-status mp-timer" id="mp-status" aria-live="polite"></span>
   </div>
 
+  <!-- Penalty countdown banner — shown during invalid-set lockout -->
+  <div id="penalty-overlay" class="penalty-overlay hidden" aria-hidden="true"></div>
+  <div id="penalty-bar" class="penalty-bar hidden" aria-live="assertive">
+    Penalty: <span id="penalty-countdown">0</span>s remaining
+  </div>
+
   <!-- Card board -->
   <div id="board" role="region" aria-label="Game board"></div>
 

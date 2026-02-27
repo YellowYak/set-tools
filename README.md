@@ -64,7 +64,7 @@ Multiplayer games are hosted and synchronized via Firebase Realtime Database. An
 - Selecting three cards submits an atomic RTDB `runTransaction` — the first valid claim wins; concurrent claims from other players are safely rejected
 - Selecting 1–2 cards is local only — opponents never see your in-progress selection
 - Score panel shows every player's score, updating live; your own card is highlighted in blue
-- Invalid selections flash red locally with no round-trip
+- Invalid selections flash red and trigger an escalating lockout penalty (2 s for the first mistake, +1 s each consecutive mistake); a full-screen red tint and countdown banner make the penalty clear. The counter resets to 2 s whenever any player finds a Set
 - Extra cards are dealt automatically (via transaction) when no Set remains on the board
 - Game over when the deck is exhausted and no Sets remain; a modal shows the final ranking
 - Completed games are saved to Firestore history for all signed-in players

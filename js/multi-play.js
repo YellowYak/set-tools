@@ -36,18 +36,24 @@ let selected     = [];     // board positions selected locally (never written to
 let busy         = false;  // true while a runTransaction is in-flight
 let gameSaved    = false;  // guard against saving the same game twice
 
+let nextPenaltySecs    = 2;    // penalty duration for next invalid submission; escalates each mistake
+let penaltyTimerHandle = null; // setInterval handle for the penalty countdown display
+
 let prevBoardSet = new Set();   // canonical indices rendered in the previous frame
 let prevScores   = null;        // null = not yet initialized; populated on first state update
 let timerInterval = null;
 
 // ─── DOM references ───────────────────────────────────────────────────────────
-const scorePanelEl = document.getElementById('mp-score-panel');
-const statusEl     = document.getElementById('mp-status');
-const boardEl      = document.getElementById('board');
-const modalOverlay = document.getElementById('modal-overlay');
-const modalResult  = document.getElementById('modal-result');
-const modalScores  = document.getElementById('modal-scores');
-const saveNudgeEl  = document.getElementById('modal-save-nudge');
+const scorePanelEl     = document.getElementById('mp-score-panel');
+const statusEl         = document.getElementById('mp-status');
+const boardEl          = document.getElementById('board');
+const modalOverlay     = document.getElementById('modal-overlay');
+const modalResult      = document.getElementById('modal-result');
+const modalScores      = document.getElementById('modal-scores');
+const saveNudgeEl      = document.getElementById('modal-save-nudge');
+const penaltyOverlayEl   = document.getElementById('penalty-overlay');
+const penaltyBarEl       = document.getElementById('penalty-bar');
+const penaltyCountdownEl = document.getElementById('penalty-countdown');
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -106,12 +112,20 @@ function checkScoreChanges(players) {
   }
 
   for (const [pid, p] of Object.entries(players)) {
-    if (pid === playerId) continue; // own set already toasted in attemptClaimSet
     const newScore = p.score || 0;
     const oldScore = prevScores[pid] ?? 0;
+
     if (newScore > oldScore) {
-      showToast(`${p.name} found a Set!`, 2800);
+      // Any player scoring resets the local penalty counter
+      nextPenaltySecs = 2;
+
+      // Show toast only for opponents — own set is already toasted in attemptClaimSet
+      if (pid !== playerId) {
+        showToast(`${p.name} found a Set!`, 2800);
+      }
     }
+
+    // Always update prevScores for all players, including self
     prevScores[pid] = newScore;
   }
 }
@@ -220,6 +234,11 @@ function stopTimer() {
     clearInterval(timerInterval);
     timerInterval = null;
   }
+  // Cancel any active penalty so the countdown doesn't run after the game ends
+  clearInterval(penaltyTimerHandle);
+  penaltyTimerHandle = null;
+  penaltyOverlayEl.classList.add('hidden');
+  penaltyBarEl.classList.add('hidden');
 }
 
 // ─── Card selection (local only — never written to RTDB) ─────────────────────
@@ -263,9 +282,8 @@ async function attemptClaimSet(positions) {
   const board = gameState?.board ?? [];
   const cards = positions.map(pos => CANONICAL_DECK[board[pos]]);
   if (positions.some(pos => pos >= board.length) || !isSet(cards[0], cards[1], cards[2])) {
-    flashError(positions);
-    busy = false;
-    return;
+    applyPenalty(positions);
+    return; // busy stays true — clearPenalty() resets it after the countdown
   }
 
   try {
@@ -384,19 +402,61 @@ async function ensureSetOnBoard() {
   }
 }
 
-// ─── Error flash ─────────────────────────────────────────────────────────────
+// ─── Penalty (invalid set submission) ────────────────────────────────────────
 
-function flashError(positions) {
-  const cards = Array.from(boardEl.children);
-  positions.forEach(pos => cards[pos]?.classList.add('error'));
+function applyPenalty(positions) {
+  const penaltySeconds = nextPenaltySecs;
+  nextPenaltySecs++;
+
+  // 1. Flash the cards red (fix: use flash-error, not error)
+  const cardEls = Array.from(boardEl.children);
+  positions.forEach(pos => cardEls[pos]?.classList.add('flash-error'));
   setTimeout(() => {
-    positions.forEach(pos => cards[pos]?.classList.remove('error'));
+    positions.forEach(pos => cardEls[pos]?.classList.remove('flash-error'));
   }, 650);
+
+  // 2. Toast message
+  showToast(`Not a set: ${penaltySeconds}-second penalty.`, 2800);
+
+  // 3. Dim board (also blocks pointer events via CSS .board--penalized)
+  boardEl.classList.add('board--penalized');
+
+  // 4. Show overlay tint and initialize the countdown banner
+  penaltyOverlayEl.classList.remove('hidden');
+  penaltyCountdownEl.textContent = penaltySeconds.toFixed(1);
+  penaltyBarEl.classList.remove('hidden');
+
+  // 5. Tick the countdown every 100ms (tenths of a second)
+  let remaining = penaltySeconds * 10; // track in tenths
+  clearInterval(penaltyTimerHandle);
+  penaltyTimerHandle = setInterval(() => {
+    remaining--;
+    penaltyCountdownEl.textContent = (remaining / 10).toFixed(1);
+    if (remaining <= 0) {
+      clearPenalty();
+    }
+  }, 100);
+
+  // 6. Belt-and-suspenders: hard cutoff in case interval drifts
+  setTimeout(clearPenalty, penaltySeconds * 1000 + 50);
+}
+
+function clearPenalty() {
+  if (!penaltyTimerHandle && penaltyBarEl.classList.contains('hidden')) return; // already cleared
+
+  clearInterval(penaltyTimerHandle);
+  penaltyTimerHandle = null;
+
+  boardEl.classList.remove('board--penalized');
+  penaltyOverlayEl.classList.add('hidden');
+  penaltyBarEl.classList.add('hidden');
+  busy = false; // re-enable card selection
 }
 
 // ─── Game over ───────────────────────────────────────────────────────────────
 
 async function showGameOver(state) {
+  clearPenalty(); // ensure busy=false and penalty UI dismissed even if game ends mid-penalty
   if (modalOverlay.classList.contains('hidden') === false) return; // already shown
 
   const players  = state.players ?? {};
