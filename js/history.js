@@ -192,12 +192,12 @@ function renderSummary() {
     ? setTimesAll.reduce((s, t) => s + t, 0) / setTimesAll.length
     : null;
 
-  const stats = [{ label: 'Games', value: total }];
+  const stats = [];
 
   if (filters.mode === 'all') {
     const solo = games.filter(g => g.gameMode === 'solo').length;
     stats.push({ label: 'Solo',  value: solo });
-    stats.push({ label: 'Multi', value: multi.length });
+    stats.push({ label: 'Multi', value: `${multiWins}W / ${multiLosses}L / ${multiTies}T` });
     stats.push({ label: 'vs CPU', value: `${cpuWins}W / ${cpuLosses}L / ${cpuTies}T` });
   } else if (filters.mode === 'vs-computer') {
     stats.push({ label: 'W / L / T', value: `${cpuWins} / ${cpuLosses} / ${cpuTies}` });

@@ -24,7 +24,7 @@ Any static file server will do (VS Code Live Server, `npx serve`, etc.).
 | Page | Description |
 |---|---|
 | `index.html` | Landing page with rules summary and navigation |
-| `play.html` | Play the game — single player or vs Computer, full game loop |
+| `play.html` | Play the game — single player, vs Computer, or launch Multiplayer |
 | `solve.html` | Board builder and Set solver — add any cards, find all Sets |
 | `lobby.html` | Multiplayer lobby — create or join real-time online games |
 | `multi-play.html` | Multiplayer game board — real-time synchronized play via Firebase |
@@ -80,7 +80,7 @@ Multiplayer games are hosted and synchronized via Firebase Realtime Database. An
 
 ### Play page
 
-**Game modes** — chosen at the start of every game:
+**Game modes** — chosen at the start of every game via the New Game modal:
 - **Single Player** — play at your own pace, finding Sets until the deck runs out
 - **vs Computer** — race the computer to find Sets; choose a difficulty level:
   | Difficulty | Computer response time |
@@ -91,6 +91,7 @@ Multiplayer games are hosted and synchronized via Firebase Realtime Database. An
   | Genius | 2–8 seconds |
 
   The computer waits a random duration (within the range for the chosen difficulty) then claims a Set if the player hasn't found one first. Each round uses a fresh random delay. The computer's score card shows the active difficulty level.
+- **Multiplayer** — navigates to the lobby to create or join a real-time online game
 
 **Score panel** — Player 1 score on the left, elapsed time centered, Computer score on the right (vs Computer mode only).
 
