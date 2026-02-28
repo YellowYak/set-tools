@@ -1712,6 +1712,24 @@ a {
   background: rgba(37, 99, 235, 0.12);
 }
 
+/* Dim disconnected players */
+.score-card--offline {
+  opacity: 0.55;
+}
+
+.offline-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.07);
+  color: #88bb80;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
 /* Controls row — single status line, right-aligned */
 .mp-controls {
   justify-content: flex-end;

@@ -45,6 +45,7 @@ let penaltyTimerHandle = null; // setInterval handle for the penalty countdown d
 
 let prevBoardSet    = new Set();  // canonical indices rendered in the previous frame
 let prevScores      = null;       // null = not yet initialized; populated on first state update
+let prevConnected   = null;       // null = not yet initialized; { [playerId]: boolean }
 let timerInterval   = null;
 let extraDealTimeout = null;      // pending setTimeout handle for the no-set extra-deal pause
 
@@ -87,6 +88,7 @@ function handleStateUpdate(newState) {
   gameState = newState;
 
   checkScoreChanges(newState.players ?? {});
+  detectConnectionChanges(newState.players ?? {});
   renderScorePanel(newState.players ?? {});
   renderBoard(newState.board ?? []);
   updateStatusBar();
@@ -141,6 +143,28 @@ function checkScoreChanges(players) {
   }
 }
 
+// ─── Connection change detection ─────────────────────────────────────────────
+
+function detectConnectionChanges(players) {
+  const current = Object.fromEntries(
+    Object.entries(players).map(([pid, p]) => [pid, p.connected !== false])
+  );
+  if (prevConnected === null) {
+    // First snapshot — initialize without toasting
+    prevConnected = current;
+    return;
+  }
+  for (const [pid, isConnected] of Object.entries(current)) {
+    const wasConnected = prevConnected[pid] ?? true;
+    if (wasConnected && !isConnected) {
+      showToast(`${players[pid].name} has disconnected.`, 4000);
+    } else if (!wasConnected && isConnected) {
+      showToast(`${players[pid].name} has reconnected.`, 2800);
+    }
+  }
+  prevConnected = current;
+}
+
 // ─── Score panel ─────────────────────────────────────────────────────────────
 
 function renderScorePanel(players) {
@@ -150,10 +174,14 @@ function renderScorePanel(players) {
   scorePanelEl.innerHTML = '';
 
   for (const [pid, p] of entries) {
+    const isOffline = p.connected === false;
     const card = document.createElement('div');
-    card.className = 'score-card' + (pid === playerId ? ' score-card--you' : '');
+    card.className = 'score-card'
+      + (pid === playerId ? ' score-card--you' : '')
+      + (isOffline ? ' score-card--offline' : '');
     card.innerHTML = `
       <div class="player-name">${escHtml(p.name)}${pid === playerId ? ' <span style="font-size:0.65em;opacity:0.7">(you)</span>' : ''}</div>
+      ${isOffline ? '<span class="offline-badge">offline</span>' : ''}
       <div class="player-score">${p.score || 0}</div>
       <div class="score-label">Sets found</div>
     `;
