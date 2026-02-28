@@ -65,9 +65,10 @@ export async function saveGame(data) {
  * @param {Object} rtdbGame    Full /games/{gameId} RTDB snapshot value
  * @param {string} myPlayerId  The caller's RTDB player id (uid or guest_xxx)
  * @param {string} uid         Firebase Auth uid of the caller
+ * @param {Object} localStats  Client-side stats: { mistakeCount, setTimesMs, avgSetTimeMs, fastestSetMs }
  * @returns {Promise<void>}
  */
-export async function saveMultiplayerGame(rtdbGame, myPlayerId, uid) {
+export async function saveMultiplayerGame(rtdbGame, myPlayerId, uid, localStats = {}) {
   const players = rtdbGame.players ?? {};
   const myData  = players[myPlayerId] ?? {};
   const myScore = myData.score ?? 0;
@@ -98,15 +99,15 @@ export async function saveMultiplayerGame(rtdbGame, myPlayerId, uid) {
     opponents,
     playerCount:     Object.keys(players).length,
     durationMs,
-    // Null out solo/vs-computer fields so history queries don't break
+    mistakeCount:    localStats.mistakeCount  ?? null,
+    setTimesMs:      localStats.setTimesMs    ?? null,
+    avgSetTimeMs:    localStats.avgSetTimeMs  ?? null,
+    fastestSetMs:    localStats.fastestSetMs  ?? null,
+    // Fields that don't apply to multiplayer
     difficulty:      null,
     computerSets:    null,
     hintsUsed:       null,
-    mistakeCount:    null,
     extraCardsDealt: null,
-    setTimesMs:      null,
-    avgSetTimeMs:    null,
-    fastestSetMs:    null,
     slowestSetMs:    null,
     completedAt:     serverTimestamp(),
   });

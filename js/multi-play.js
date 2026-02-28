@@ -36,6 +36,10 @@ let selected     = [];     // board positions selected locally (never written to
 let busy         = false;  // true while a runTransaction is in-flight
 let gameSaved    = false;  // guard against saving the same game twice
 
+let mistakeCount      = 0;    // invalid submissions by this player this game
+let playerSetTimes    = [];   // ms elapsed for each Set this player found
+let lastSetTimestamp  = null; // Date.now() at game start or after the last set was found
+
 let nextPenaltySecs    = 2;    // penalty duration for next invalid submission; escalates each mistake
 let penaltyTimerHandle = null; // setInterval handle for the penalty countdown display
 
@@ -89,6 +93,9 @@ function handleStateUpdate(newState) {
 
   if (newState.status === 'playing') {
     startTimer(newState.startedAt);
+    if (lastSetTimestamp === null && newState.startedAt) {
+      lastSetTimestamp = newState.startedAt;
+    }
     if (!hasSet((newState.board ?? []).map(i => CANONICAL_DECK[i]))) {
       scheduleExtraDeal();
     } else {
@@ -119,8 +126,9 @@ function checkScoreChanges(players) {
     const oldScore = prevScores[pid] ?? 0;
 
     if (newScore > oldScore) {
-      // Any player scoring resets the local penalty counter
-      nextPenaltySecs = 2;
+      // Any player scoring resets the local penalty counter and the set-time clock
+      nextPenaltySecs  = 2;
+      lastSetTimestamp = Date.now();
 
       // Show toast only for opponents — own set is already toasted in attemptClaimSet
       if (pid !== playerId) {
@@ -359,6 +367,9 @@ async function attemptClaimSet(positions) {
     });
 
     if (result.committed) {
+      if (lastSetTimestamp !== null) {
+        playerSetTimes.push(Date.now() - lastSetTimestamp);
+      }
       showToast('Set!');
     } else {
       // Transaction aborted — either not a set or board changed under us
@@ -427,6 +438,7 @@ async function ensureSetOnBoard() {
 // ─── Penalty (invalid set submission) ────────────────────────────────────────
 
 function applyPenalty(positions) {
+  mistakeCount++;
   const penaltySeconds = nextPenaltySecs;
   nextPenaltySecs++;
 
@@ -509,8 +521,13 @@ async function showGameOver(state) {
   // Save to Firestore for signed-in players (once per client)
   if (currentUser && !gameSaved) {
     gameSaved = true;
+    const avgSetTimeMs = playerSetTimes.length
+      ? Math.round(playerSetTimes.reduce((a, b) => a + b, 0) / playerSetTimes.length)
+      : null;
+    const fastestSetMs = playerSetTimes.length ? Math.min(...playerSetTimes) : null;
     try {
-      await saveMultiplayerGame(state, playerId, currentUser.uid);
+      await saveMultiplayerGame(state, playerId, currentUser.uid,
+        { mistakeCount, setTimesMs: [...playerSetTimes], avgSetTimeMs, fastestSetMs });
       saveNudgeEl.textContent = '✓ Results saved to your history.';
     } catch (err) {
       console.error('saveMultiplayerGame:', err);

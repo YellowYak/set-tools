@@ -206,9 +206,7 @@ function renderSummary() {
   }
 
   stats.push({ label: 'Avg Duration', value: formatDuration(avgDurationMs) });
-  if (filters.mode !== 'multiplayer') {
-    stats.push({ label: 'Avg Set Time', value: avgSetMs !== null ? formatMs(avgSetMs) : '—' });
-  }
+  stats.push({ label: 'Avg Set Time', value: avgSetMs !== null ? formatMs(avgSetMs) : '—' });
 
   summaryEl.innerHTML = stats.map(s => `
     <div class="summary-stat">
@@ -264,10 +262,10 @@ function renderPage(page) {
           ` : ''}
           ${game.gameMode === 'vs-computer' ? `<div><dt>Computer Sets</dt><dd>${game.computerSets ?? '—'}</dd></div>` : ''}
           ${game.gameMode === 'solo' ? `<div><dt>Hints Used</dt><dd>${game.hintsUsed ?? 0}</dd></div>` : ''}
-          ${!isMulti ? `<div><dt>Mistakes</dt><dd>${game.mistakeCount ?? 0}</dd></div>` : ''}
+          <div><dt>Mistakes</dt><dd>${game.mistakeCount ?? 0}</dd></div>
           ${!isMulti ? `<div><dt>Extra Cards Dealt</dt><dd>${game.extraCardsDealt ?? 0}</dd></div>` : ''}
-          ${!isMulti ? `<div><dt>Avg Set Time</dt><dd>${game.avgSetTimeMs != null ? formatMs(game.avgSetTimeMs) : '—'}</dd></div>` : ''}
-          ${!isMulti ? `<div><dt>Fastest Set</dt><dd>${game.fastestSetMs != null ? formatMs(game.fastestSetMs) : '—'}</dd></div>` : ''}
+          <div><dt>Avg Set Time</dt><dd>${game.avgSetTimeMs != null ? formatMs(game.avgSetTimeMs) : '—'}</dd></div>
+          <div><dt>Fastest Set</dt><dd>${game.fastestSetMs != null ? formatMs(game.fastestSetMs) : '—'}</dd></div>
           ${!isMulti ? `<div><dt>Slowest Set</dt><dd>${game.slowestSetMs != null ? formatMs(game.slowestSetMs) : '—'}</dd></div>` : ''}
         </dl>
       </td>
