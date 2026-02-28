@@ -39,9 +39,10 @@ let gameSaved    = false;  // guard against saving the same game twice
 let nextPenaltySecs    = 2;    // penalty duration for next invalid submission; escalates each mistake
 let penaltyTimerHandle = null; // setInterval handle for the penalty countdown display
 
-let prevBoardSet = new Set();   // canonical indices rendered in the previous frame
-let prevScores   = null;        // null = not yet initialized; populated on first state update
-let timerInterval = null;
+let prevBoardSet    = new Set();  // canonical indices rendered in the previous frame
+let prevScores      = null;       // null = not yet initialized; populated on first state update
+let timerInterval   = null;
+let extraDealTimeout = null;      // pending setTimeout handle for the no-set extra-deal pause
 
 // ─── DOM references ───────────────────────────────────────────────────────────
 const scorePanelEl     = document.getElementById('mp-score-panel');
@@ -88,9 +89,10 @@ function handleStateUpdate(newState) {
 
   if (newState.status === 'playing') {
     startTimer(newState.startedAt);
-    // Any client can trigger the extra-deal if there's no set on board
     if (!hasSet((newState.board ?? []).map(i => CANONICAL_DECK[i]))) {
-      ensureSetOnBoard();
+      scheduleExtraDeal();
+    } else {
+      cancelExtraDeal();
     }
   }
 
@@ -240,6 +242,7 @@ function stopTimer() {
   penaltyTimerHandle = null;
   penaltyOverlayEl.classList.add('hidden');
   penaltyBarEl.classList.add('hidden');
+  cancelExtraDeal();
 }
 
 // ─── Card selection (local only — never written to RTDB) ─────────────────────
@@ -367,6 +370,24 @@ async function attemptClaimSet(positions) {
   } finally {
     busy = false;
   }
+}
+
+// ─── Delayed extra-deal (show toast, pause, then transact) ───────────────────
+
+function scheduleExtraDeal() {
+  if (extraDealTimeout) return;                      // already scheduled
+  if ((gameState?.deckPointer ?? 81) >= 81) return;  // deck exhausted — nothing to deal
+  showToast('No sets on the board — dealing 3 more cards…', 2800);
+  extraDealTimeout = setTimeout(() => {
+    extraDealTimeout = null;
+    ensureSetOnBoard();
+  }, 3000);
+}
+
+function cancelExtraDeal() {
+  if (!extraDealTimeout) return;
+  clearTimeout(extraDealTimeout);
+  extraDealTimeout = null;
 }
 
 // ─── Auto-deal when no set is on the board ────────────────────────────────────
