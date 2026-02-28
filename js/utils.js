@@ -25,6 +25,20 @@ export function showToast(message, duration = 2800) {
 }
 
 /**
+ * Apply the deal-in CSS animation to a card element.
+ * @param {HTMLElement} el
+ * @param {number} delayMs
+ */
+export function dealInCard(el, delayMs) {
+  el.style.animationDelay = `${delayMs}ms`;
+  el.classList.add('dealing');
+  el.addEventListener('animationend', () => {
+    el.classList.remove('dealing');
+    el.style.animationDelay = '';
+  }, { once: true });
+}
+
+/**
  * Escape a string for safe insertion into HTML.
  * @param {*} str
  * @returns {string}

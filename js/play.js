@@ -19,7 +19,7 @@ import { createCardEl, renderSetList } from './card-render.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js';
 import { auth } from './firebase-init.js';
 import { saveGame } from './db.js';
-import { showToast } from './utils.js';
+import { showToast, dealInCard } from './utils.js';
 
 // ── DOM References ──────────────────────────────────────────
 const boardEl            = document.getElementById('board');
@@ -249,9 +249,9 @@ function removeCards(indices) {
  */
 function replaceOrRemoveCards(indices) {
   if (board.length <= 12 && deck.length >= 3) {
-    const sorted = [...indices].map((idx, i) => ({ idx, i }))
+    const sorted = [...indices].map((idx, staggerOrder) => ({ idx, staggerOrder }))
                                .sort((a, b) => b.idx - a.idx);
-    for (const { idx, i } of sorted) replaceCard(idx, i * REPLACE_STAGGER_MS);
+    for (const { idx, staggerOrder } of sorted) replaceCard(idx, staggerOrder * REPLACE_STAGGER_MS);
   } else {
     removeCards(indices);
   }
@@ -301,7 +301,8 @@ function onCardKeyDown(e) {
     e.preventDefault();
     if (busy || paused) return;
     const idx = indexOfEl(e.currentTarget);
-    if (idx !== -1) toggleSelect(idx);
+    if (idx === -1) return;
+    toggleSelect(idx);
   }
 }
 
@@ -445,21 +446,6 @@ function flyCardsToScore(els, targetEl, onComplete) {
   }, pulseAt);
 
   setTimeout(onComplete, TOTAL_MS);
-}
-
-// ── Deal-In Animation ─────────────────────────────────────────
-/**
- * Apply the deal-in CSS animation to a card element.
- * @param {Element} el
- * @param {number}  delayMs
- */
-function dealInCard(el, delayMs) {
-  el.style.animationDelay = `${delayMs}ms`;
-  el.classList.add('dealing');
-  el.addEventListener('animationend', () => {
-    el.classList.remove('dealing');
-    el.style.animationDelay = '';
-  }, { once: true });
 }
 
 // ── Error ────────────────────────────────────────────────────

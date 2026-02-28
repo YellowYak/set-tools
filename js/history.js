@@ -87,22 +87,22 @@ async function loadHistory(uid) {
 function sortedGames(games) {
   const { column, direction } = sortState;
   return [...games].sort((a, b) => {
-    let av = a[column];
-    let bv = b[column];
+    let aVal = a[column];
+    let bVal = b[column];
 
     // Nullish values (e.g. Solo games with no outcome) move with the sort:
     // end on ascending, beginning on descending.
-    if (av == null && bv == null) return 0;
-    if (av == null) return direction === 'asc' ?  1 : -1;
-    if (bv == null) return direction === 'asc' ? -1 :  1;
+    if (aVal == null && bVal == null) return 0;
+    if (aVal == null) return direction === 'asc' ?  1 : -1;
+    if (bVal == null) return direction === 'asc' ? -1 :  1;
 
     // Firestore Lite timestamps → numeric seconds for comparison
     if (column === 'completedAt') {
-      av = av.seconds ?? 0;
-      bv = bv.seconds ?? 0;
+      aVal = aVal.seconds ?? 0;
+      bVal = bVal.seconds ?? 0;
     }
 
-    const cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
+    const cmp = typeof aVal === 'string' ? aVal.localeCompare(bVal) : aVal - bVal;
     return direction === 'asc' ? cmp : -cmp;
   });
 }

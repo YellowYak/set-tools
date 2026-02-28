@@ -63,7 +63,7 @@ Multiplayer games are hosted and synchronized via Firebase Realtime Database. An
 - All players see an identical board derived from the same server-stored shuffle
 - Selecting three cards submits an atomic RTDB `runTransaction` — the first valid claim wins; concurrent claims from other players are safely rejected
 - Selecting 1–2 cards is local only — opponents never see your in-progress selection
-- Score panel shows every player's score, updating live; your own card is highlighted in blue
+- Score panel shows every player's score, updating live; your own card is highlighted in blue; if a player disconnects mid-game their card dims and shows an **offline** badge, and a toast notifies the remaining players — the badge clears automatically if they reconnect
 - Invalid selections flash red and trigger an escalating lockout penalty (2 s for the first mistake, +1 s each consecutive mistake); a full-screen red tint and countdown banner make the penalty clear. The counter resets to 2 s whenever any player finds a Set
 - Extra cards are dealt automatically (via transaction) when no Set remains on the board
 - Game over when the deck is exhausted and no Sets remain; a modal shows the final ranking
@@ -149,7 +149,7 @@ Multiplayer games are hosted and synchronized via Firebase Realtime Database. An
 │   ├── history.js          History page — loads, filters, sorts, and paginates game records
 │   ├── firebase-init.js    Firebase app singleton — exports app, auth, and rtdb
 │   ├── db.js               Firestore helpers — saveGame(), saveMultiplayerGame(), getGames()
-│   └── utils.js            Shared UI helpers — showToast(), escHtml()
+│   └── utils.js            Shared UI helpers — showToast(), escHtml(), dealInCard()
 └── assets/
     └── set-card-prototype.html   Visual reference for SVG shapes and fills
 ```

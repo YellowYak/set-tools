@@ -18,7 +18,7 @@ import { isSet, hasSet, findAllSets } from './set-logic.js';
 import { createCardEl }  from './card-render.js';
 import { saveMultiplayerGame } from './db.js';
 import { getPlayerId } from './guest-identity.js';
-import { showToast, escHtml } from './utils.js';
+import { showToast, escHtml, dealInCard } from './utils.js';
 
 // ─── Canonical deck (deterministic — createDeck() always returns the same 81 cards) ──
 const CANONICAL_DECK = createDeck();
@@ -227,14 +227,6 @@ function renderBoard(boardIndices) {
   prevBoardSet = new Set(boardIndices);
 }
 
-function dealInCard(el, delayMs) {
-  el.classList.add('dealing');
-  el.style.animationDelay = `${delayMs}ms`;
-  el.addEventListener('animationend', () => {
-    el.classList.remove('dealing');
-    el.style.animationDelay = '';
-  }, { once: true });
-}
 
 // ─── Status bar ───────────────────────────────────────────────────────────────
 
