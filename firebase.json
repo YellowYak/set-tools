@@ -4,9 +4,13 @@
     "ignore": [
       "firebase.json",
       ".firebaserc",
+      "database.rules.json",
       "CLAUDE.md",
       "README.md",
       "**/.*"
     ]
+  },
+  "database": {
+    "rules": "database.rules.json"
   }
 }

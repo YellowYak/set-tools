@@ -73,9 +73,11 @@ onAuthStateChanged(auth, user => {
 if (!gameId) {
   window.location.href = 'lobby.html';
 } else {
-  onValue(ref(rtdb, `games/${gameId}`), snap => {
+  const unsubGame = onValue(ref(rtdb, `games/${gameId}`), snap => {
     if (!snap.exists()) {
+      unsubGame();
       showToast('Game not found.');
+      window.location.href = 'lobby.html';
       return;
     }
     handleStateUpdate(snap.val());
@@ -96,7 +98,10 @@ function handleStateUpdate(newState) {
   if (newState.status === 'playing') {
     startTimer(newState.startedAt);
     if (lastSetTimestamp === null && newState.startedAt) {
-      lastSetTimestamp = newState.startedAt;
+      // Use Date.now() so timing starts from when this client first sees the
+      // board, not from the absolute game-start epoch. This prevents inflated
+      // set-times for late joiners who connect mid-game.
+      lastSetTimestamp = Date.now();
     }
     if (!hasSet((newState.board ?? []).map(i => CANONICAL_DECK[i]))) {
       scheduleExtraDeal();
@@ -157,9 +162,9 @@ function detectConnectionChanges(players) {
   for (const [pid, isConnected] of Object.entries(current)) {
     const wasConnected = prevConnected[pid] ?? true;
     if (wasConnected && !isConnected) {
-      showToast(`${players[pid].name} has disconnected.`, 4000);
+      showToast(`${players[pid]?.name ?? 'A player'} has disconnected.`, 4000);
     } else if (!wasConnected && isConnected) {
-      showToast(`${players[pid].name} has reconnected.`, 2800);
+      showToast(`${players[pid]?.name ?? 'A player'} has reconnected.`, 2800);
     }
   }
   prevConnected = current;
@@ -396,7 +401,7 @@ async function attemptClaimSet(positions) {
       showToast('Too slow — try another!');
     }
   } catch (err) {
-    showToast('Connection error — please try again.');
+    showToast('Failed to submit — please try again.');
     console.error('attemptClaimSet:', err);
   } finally {
     busy = false;
@@ -480,19 +485,17 @@ function applyPenalty(positions) {
   penaltyCountdownEl.textContent = penaltySeconds.toFixed(1);
   penaltyBarEl.classList.remove('hidden');
 
-  // 5. Tick the countdown every 100ms (tenths of a second)
-  let remaining = penaltySeconds * 10; // track in tenths
+  // 5. Tick the countdown every 100ms using a wall-clock deadline to
+  //    avoid drift — remaining time is always computed from Date.now().
+  const penaltyEnd = Date.now() + penaltySeconds * 1000;
   clearInterval(penaltyTimerHandle);
   penaltyTimerHandle = setInterval(() => {
-    remaining--;
-    penaltyCountdownEl.textContent = (remaining / 10).toFixed(1);
-    if (remaining <= 0) {
+    const remainingMs = penaltyEnd - Date.now();
+    penaltyCountdownEl.textContent = (Math.max(0, remainingMs) / 1000).toFixed(1);
+    if (remainingMs <= 0) {
       clearPenalty();
     }
   }, 100);
-
-  // 6. Belt-and-suspenders: hard cutoff in case interval drifts
-  setTimeout(clearPenalty, penaltySeconds * 1000 + 50);
 }
 
 function clearPenalty() {

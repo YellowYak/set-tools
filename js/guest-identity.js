@@ -34,11 +34,20 @@ export function getGuestName() {
 }
 
 /**
- * Saves a display name to localStorage.
+ * Saves a display name to localStorage (max 24 chars, matching the HTML input).
  * @param {string} name
  */
 export function setGuestName(name) {
-  localStorage.setItem(KEY_NAME, name.trim());
+  localStorage.setItem(KEY_NAME, name.trim().slice(0, 24));
+}
+
+/**
+ * Clears the guest id and name from localStorage.
+ * Call this when a user signs in so stale guest identity doesn't resurface on sign-out.
+ */
+export function clearGuestIdentity() {
+  localStorage.removeItem(KEY_ID);
+  localStorage.removeItem(KEY_NAME);
 }
 
 /**

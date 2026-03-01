@@ -258,7 +258,7 @@ function renderPage(page) {
       <td colspan="6">
         <dl class="history-detail-grid">
           ${isMulti && game.opponents?.length ? `
-            <div><dt>Opponents</dt><dd>${game.opponents.map(o => `${escHtml(o.name)} (${o.score})`).join(', ')}</dd></div>
+            <div><dt>Opponents</dt><dd>${game.opponents.map(o => `${escHtml(o.name ?? '?')} (${typeof o.score === 'number' && o.score >= 0 ? o.score : '?'})`).join(', ')}</dd></div>
           ` : ''}
           ${game.gameMode === 'vs-computer' ? `<div><dt>Computer Sets</dt><dd>${game.computerSets ?? '—'}</dd></div>` : ''}
           ${game.gameMode === 'solo' ? `<div><dt>Hints Used</dt><dd>${game.hintsUsed ?? 0}</dd></div>` : ''}

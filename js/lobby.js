@@ -6,14 +6,14 @@
  */
 
 import {
-  ref, push, set, get, update, onValue, remove, onDisconnect, runTransaction,
+  ref, push, set, get, update, onValue, remove, onDisconnect, runTransaction, increment,
 } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js';
 import { auth, rtdb }         from './firebase-init.js';
 import { createDeck, shuffle } from './deck.js';
 import { hasSet }              from './set-logic.js';
 import {
-  getPlayerId, getDisplayName, getGuestName, setGuestName,
+  getPlayerId, getDisplayName, getGuestName, setGuestName, clearGuestIdentity,
 } from './guest-identity.js';
 import { showToast, escHtml } from './utils.js';
 
@@ -62,6 +62,10 @@ onAuthStateChanged(auth, user => {
   currentUser = user;
   playerId    = getPlayerId(user);
   playerName  = getDisplayName(user);
+
+  // When a real account signs in, clear any stale guest identity so it doesn't
+  // resurface if the user later signs out on a shared device.
+  if (user) clearGuestIdentity();
 
   if (initialized) return;
   initialized = true;
@@ -112,7 +116,8 @@ function continueInit() {
 function bindEntryEvents() {
   createBtn.addEventListener('click', () => {
     const checked = playerCountForm.querySelector('input[name="player-count"]:checked');
-    const maxPlayers = checked ? parseInt(checked.value, 10) : 2;
+    const parsed  = checked ? parseInt(checked.value, 10) : 2;
+    const maxPlayers = Number.isFinite(parsed) ? Math.max(2, Math.min(4, parsed)) : 2;
     createGame(maxPlayers);
   });
 
@@ -169,7 +174,7 @@ async function loadPublicGames() {
       const g = child.val();
       if (g.status === 'waiting') games.push(g);
     });
-    games.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    games.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0) || (a.id ?? '').localeCompare(b.id ?? ''));
 
     if (games.length === 0) {
       noGamesEl.classList.remove('hidden');
@@ -184,12 +189,15 @@ async function loadPublicGames() {
 }
 
 function buildGameItem(g) {
+  const playerCount = Number.isFinite(g.playerCount) && g.playerCount >= 0 ? g.playerCount : '?';
+  const maxPlayers  = Number.isFinite(g.maxPlayers)  && g.maxPlayers >= 2  ? g.maxPlayers  : '?';
+
   const div = document.createElement('div');
   div.className = 'lobby-game-item';
   div.innerHTML = `
     <div class="lobby-game-info">
-      <div class="lobby-game-host">${escHtml(g.hostName)}'s game</div>
-      <div class="lobby-game-count">${g.playerCount} / ${g.maxPlayers} players</div>
+      <div class="lobby-game-host">${escHtml(g.hostName ?? 'Unknown')}'s game</div>
+      <div class="lobby-game-count">${playerCount} / ${maxPlayers} players</div>
     </div>
     <button class="btn btn-secondary">Join</button>
   `;
@@ -335,15 +343,14 @@ async function joinGame(gameId) {
     if (!result.committed) {
       if (rejectionReason === 'started') showToast('That game has already started.');
       else if (rejectionReason === 'full') showToast('That game is full.');
-      else showToast('Could not join — please try again.');
+      else showToast('Failed to join — please try again.');
       return;
     }
 
-    // Transaction committed: update the lobby player count (best-effort) and proceed.
+    // Transaction committed: atomically increment the lobby player count.
     // Private games have no lobby entry — updating a missing RTDB path would create one.
-    const newCount = Object.keys(result.val().players).length;
     if (!result.val().isPrivate) {
-      await update(ref(rtdb, `lobbies/${gameId}`), { playerCount: newCount });
+      await update(ref(rtdb, `lobbies/${gameId}`), { playerCount: increment(1) });
     }
 
     onDisconnect(ref(rtdb, `games/${gameId}/players/${playerId}/connected`)).set(false);
@@ -456,8 +463,12 @@ async function leaveGame(gameId) {
   if (!gameId) return;
 
   try {
-    // Cancel the disconnect hook so leaving doesn't leave a ghost entry
-    await onDisconnect(ref(rtdb, `games/${gameId}/players/${playerId}/connected`)).cancel();
+    // Cancel the disconnect hook first (best-effort — don't let failure block removal)
+    try {
+      await onDisconnect(ref(rtdb, `games/${gameId}/players/${playerId}/connected`)).cancel();
+    } catch (cancelErr) {
+      console.error('leaveGame cancel hook:', cancelErr);
+    }
     await remove(ref(rtdb, `games/${gameId}/players/${playerId}`));
 
     // Host leaving: cancel the pre-start game-node cleanup hook and remove lobby entry
