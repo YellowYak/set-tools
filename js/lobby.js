@@ -59,13 +59,13 @@ const lobbyPrivateNotice = document.getElementById('lobby-private-notice');
 // ─── Auth init ────────────────────────────────────────────────────────────────
 
 onAuthStateChanged(auth, user => {
+  // Clear stale guest identity only on the transition from signed-out to signed-in
+  // (not on every token refresh), so it doesn't resurface on a shared device.
+  if (user && !currentUser) clearGuestIdentity();
+
   currentUser = user;
   playerId    = getPlayerId(user);
   playerName  = getDisplayName(user);
-
-  // When a real account signs in, clear any stale guest identity so it doesn't
-  // resurface if the user later signs out on a shared device.
-  if (user) clearGuestIdentity();
 
   if (initialized) return;
   initialized = true;

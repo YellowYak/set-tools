@@ -73,7 +73,9 @@ onAuthStateChanged(auth, user => {
 if (!gameId) {
   window.location.href = 'lobby.html';
 } else {
-  const unsubGame = onValue(ref(rtdb, `games/${gameId}`), snap => {
+  // let (not const) so the closure captures the binding after assignment
+  let unsubGame;
+  unsubGame = onValue(ref(rtdb, `games/${gameId}`), snap => {
     if (!snap.exists()) {
       unsubGame();
       showToast('Game not found.');
