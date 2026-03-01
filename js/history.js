@@ -10,6 +10,7 @@
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js';
 import { auth } from './firebase-init.js';
 import { getGames } from './db.js';
+import { escHtml } from './utils.js';
 
 const PAGE_SIZE = 10;
 
@@ -86,22 +87,22 @@ async function loadHistory(uid) {
 function sortedGames(games) {
   const { column, direction } = sortState;
   return [...games].sort((a, b) => {
-    let av = a[column];
-    let bv = b[column];
+    let aVal = a[column];
+    let bVal = b[column];
 
     // Nullish values (e.g. Solo games with no outcome) move with the sort:
     // end on ascending, beginning on descending.
-    if (av == null && bv == null) return 0;
-    if (av == null) return direction === 'asc' ?  1 : -1;
-    if (bv == null) return direction === 'asc' ? -1 :  1;
+    if (aVal == null && bVal == null) return 0;
+    if (aVal == null) return direction === 'asc' ?  1 : -1;
+    if (bVal == null) return direction === 'asc' ? -1 :  1;
 
     // Firestore Lite timestamps → numeric seconds for comparison
     if (column === 'completedAt') {
-      av = av.seconds ?? 0;
-      bv = bv.seconds ?? 0;
+      aVal = aVal.seconds ?? 0;
+      bVal = bVal.seconds ?? 0;
     }
 
-    const cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
+    const cmp = typeof aVal === 'string' ? aVal.localeCompare(bVal) : aVal - bVal;
     return direction === 'asc' ? cmp : -cmp;
   });
 }
@@ -175,9 +176,15 @@ function renderSummary() {
   }
 
   const vsComp = games.filter(g => g.gameMode === 'vs-computer');
-  const wins   = vsComp.filter(g => g.outcome === 'win').length;
-  const losses = vsComp.filter(g => g.outcome === 'loss').length;
-  const ties   = vsComp.filter(g => g.outcome === 'tie').length;
+  const multi  = games.filter(g => g.gameMode === 'multiplayer');
+
+  const cpuWins   = vsComp.filter(g => g.outcome === 'win').length;
+  const cpuLosses = vsComp.filter(g => g.outcome === 'loss').length;
+  const cpuTies   = vsComp.filter(g => g.outcome === 'tie').length;
+
+  const multiWins   = multi.filter(g => g.outcome === 'win').length;
+  const multiLosses = multi.filter(g => g.outcome === 'loss').length;
+  const multiTies   = multi.filter(g => g.outcome === 'tie').length;
 
   const avgDurationMs = games.reduce((s, g) => s + (g.durationMs || 0), 0) / total;
   const setTimesAll   = games.flatMap(g => g.setTimesMs || []);
@@ -185,14 +192,17 @@ function renderSummary() {
     ? setTimesAll.reduce((s, t) => s + t, 0) / setTimesAll.length
     : null;
 
-  const stats = [{ label: 'Games', value: total }];
+  const stats = [];
 
   if (filters.mode === 'all') {
     const solo = games.filter(g => g.gameMode === 'solo').length;
-    stats.push({ label: 'Solo', value: solo });
-    stats.push({ label: 'vs CPU', value: `${wins}W / ${losses}L / ${ties}T` });
+    stats.push({ label: 'Solo',  value: solo });
+    stats.push({ label: 'Multi', value: `${multiWins}W / ${multiLosses}L / ${multiTies}T` });
+    stats.push({ label: 'vs CPU', value: `${cpuWins}W / ${cpuLosses}L / ${cpuTies}T` });
   } else if (filters.mode === 'vs-computer') {
-    stats.push({ label: 'W / L / T', value: `${wins} / ${losses} / ${ties}` });
+    stats.push({ label: 'W / L / T', value: `${cpuWins} / ${cpuLosses} / ${cpuTies}` });
+  } else if (filters.mode === 'multiplayer') {
+    stats.push({ label: 'W / L / T', value: `${multiWins} / ${multiLosses} / ${multiTies}` });
   }
 
   stats.push({ label: 'Avg Duration', value: formatDuration(avgDurationMs) });
@@ -241,18 +251,22 @@ function renderPage(page) {
     `;
 
     // ── Detail row ──
+    const isMulti = game.gameMode === 'multiplayer';
     const detailRow = document.createElement('tr');
     detailRow.className = 'history-detail hidden';
     detailRow.innerHTML = `
       <td colspan="6">
         <dl class="history-detail-grid">
+          ${isMulti && game.opponents?.length ? `
+            <div><dt>Opponents</dt><dd>${game.opponents.map(o => `${escHtml(o.name ?? '?')} (${typeof o.score === 'number' && o.score >= 0 ? o.score : '?'})`).join(', ')}</dd></div>
+          ` : ''}
           ${game.gameMode === 'vs-computer' ? `<div><dt>Computer Sets</dt><dd>${game.computerSets ?? '—'}</dd></div>` : ''}
           ${game.gameMode === 'solo' ? `<div><dt>Hints Used</dt><dd>${game.hintsUsed ?? 0}</dd></div>` : ''}
           <div><dt>Mistakes</dt><dd>${game.mistakeCount ?? 0}</dd></div>
-          <div><dt>Extra Cards Dealt</dt><dd>${game.extraCardsDealt ?? 0}</dd></div>
+          ${!isMulti ? `<div><dt>Extra Cards Dealt</dt><dd>${game.extraCardsDealt ?? 0}</dd></div>` : ''}
           <div><dt>Avg Set Time</dt><dd>${game.avgSetTimeMs != null ? formatMs(game.avgSetTimeMs) : '—'}</dd></div>
           <div><dt>Fastest Set</dt><dd>${game.fastestSetMs != null ? formatMs(game.fastestSetMs) : '—'}</dd></div>
-          <div><dt>Slowest Set</dt><dd>${game.slowestSetMs != null ? formatMs(game.slowestSetMs) : '—'}</dd></div>
+          ${!isMulti ? `<div><dt>Slowest Set</dt><dd>${game.slowestSetMs != null ? formatMs(game.slowestSetMs) : '—'}</dd></div>` : ''}
         </dl>
       </td>
     `;
@@ -339,6 +353,7 @@ function formatDate(timestamp) {
 
 function formatMode(game) {
   if (game.gameMode === 'solo') return 'Solo';
+  if (game.gameMode === 'multiplayer') return `Multi (${game.playerCount ?? '?'}p)`;
   const diff = game.difficulty
     ? game.difficulty.charAt(0).toUpperCase() + game.difficulty.slice(1)
     : '';
@@ -361,3 +376,4 @@ function showOnly(el) {
   [loadingEl, signedInEl, signedOutEl, emptyEl].forEach(e => e.classList.add('hidden'));
   el.classList.remove('hidden');
 }
+

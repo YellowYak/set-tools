@@ -1,0 +1,563 @@
+/**
+ * multi-play.js — Multiplayer game board for the Set card game.
+ *
+ * All game state lives in Firebase Realtime Database. This module:
+ *   - Listens to /games/{gameId} for real-time state updates
+ *   - Renders the board and score panel on each update
+ *   - Submits Set claims via runTransaction (first claim wins atomically)
+ *   - Detects game-over and saves results to Firestore for signed-in players
+ */
+
+import {
+  ref, onValue, runTransaction,
+} from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js';
+import { auth, rtdb }    from './firebase-init.js';
+import { createDeck, pluralize } from './deck.js';
+import { isSet, hasSet, findAllSets } from './set-logic.js';
+import { createCardEl }  from './card-render.js';
+import { saveMultiplayerGame } from './db.js';
+import { getPlayerId } from './guest-identity.js';
+import { showToast, escHtml, dealInCard } from './utils.js';
+
+// ─── Canonical deck (deterministic — createDeck() always returns the same 81 cards) ──
+const CANONICAL_DECK = createDeck();
+
+// ─── State ────────────────────────────────────────────────────────────────────
+const params = new URLSearchParams(window.location.search);
+const gameId = params.get('game');
+
+// Seed identity from cached auth (may be null; onAuthStateChanged will update)
+let currentUser = auth.currentUser;
+let playerId    = getPlayerId(currentUser);
+
+let gameState    = null;   // latest /games/{gameId} snapshot value
+let selected     = [];     // board positions selected locally (never written to RTDB)
+let busy         = false;  // true while a runTransaction is in-flight
+let gameSaved    = false;  // guard against saving the same game twice
+
+let mistakeCount      = 0;    // invalid submissions by this player this game
+let playerSetTimes    = [];   // ms elapsed for each Set this player found
+let lastSetTimestamp  = null; // Date.now() at game start or after the last set was found
+
+let nextPenaltySecs    = 2;    // penalty duration for next invalid submission; escalates each mistake
+let penaltyTimerHandle = null; // setInterval handle for the penalty countdown display
+
+let prevBoardSet    = new Set();  // canonical indices rendered in the previous frame
+let prevScores      = null;       // null = not yet initialized; populated on first state update
+let prevConnected   = null;       // null = not yet initialized; { [playerId]: boolean }
+let timerInterval   = null;
+let extraDealTimeout = null;      // pending setTimeout handle for the no-set extra-deal pause
+
+// ─── DOM references ───────────────────────────────────────────────────────────
+const scorePanelEl     = document.getElementById('mp-score-panel');
+const statusEl         = document.getElementById('mp-status');
+const boardEl          = document.getElementById('board');
+const modalOverlay     = document.getElementById('modal-overlay');
+const modalResult      = document.getElementById('modal-result');
+const modalScores      = document.getElementById('modal-scores');
+const saveNudgeEl      = document.getElementById('modal-save-nudge');
+const penaltyOverlayEl   = document.getElementById('penalty-overlay');
+const penaltyBarEl       = document.getElementById('penalty-bar');
+const penaltyCountdownEl = document.getElementById('penalty-countdown');
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+onAuthStateChanged(auth, user => {
+  currentUser = user;
+  playerId    = getPlayerId(user);
+});
+
+// ─── Entry point ──────────────────────────────────────────────────────────────
+
+if (!gameId) {
+  window.location.href = 'lobby.html';
+} else {
+  // let (not const) so the closure captures the binding after assignment
+  let unsubGame;
+  unsubGame = onValue(ref(rtdb, `games/${gameId}`), snap => {
+    if (!snap.exists()) {
+      unsubGame();
+      showToast('Game not found.');
+      window.location.href = 'lobby.html';
+      return;
+    }
+    handleStateUpdate(snap.val());
+  });
+}
+
+// ─── Core state handler ───────────────────────────────────────────────────────
+
+function handleStateUpdate(newState) {
+  gameState = newState;
+
+  checkScoreChanges(newState.players ?? {});
+  detectConnectionChanges(newState.players ?? {});
+  renderScorePanel(newState.players ?? {});
+  renderBoard(newState.board ?? []);
+  updateStatusBar();
+
+  if (newState.status === 'playing') {
+    startTimer(newState.startedAt);
+    if (lastSetTimestamp === null && newState.startedAt) {
+      // Use Date.now() so timing starts from when this client first sees the
+      // board, not from the absolute game-start epoch. This prevents inflated
+      // set-times for late joiners who connect mid-game.
+      lastSetTimestamp = Date.now();
+    }
+    if (!hasSet((newState.board ?? []).map(i => CANONICAL_DECK[i]))) {
+      scheduleExtraDeal();
+    } else {
+      cancelExtraDeal();
+    }
+  }
+
+  if (newState.status === 'finished') {
+    stopTimer();
+    showGameOver(newState);
+  }
+}
+
+// ─── Score change detection ───────────────────────────────────────────────────
+
+function checkScoreChanges(players) {
+  if (prevScores === null) {
+    // First update — record baseline scores, don't fire toasts
+    prevScores = {};
+    for (const [pid, p] of Object.entries(players)) {
+      prevScores[pid] = p.score || 0;
+    }
+    return;
+  }
+
+  for (const [pid, p] of Object.entries(players)) {
+    const newScore = p.score || 0;
+    const oldScore = prevScores[pid] ?? 0;
+
+    if (newScore > oldScore) {
+      // Any player scoring resets the local penalty counter and the set-time clock
+      nextPenaltySecs  = 2;
+      lastSetTimestamp = Date.now();
+
+      // Show toast only for opponents — own set is already toasted in attemptClaimSet
+      if (pid !== playerId) {
+        showToast(`${p.name} found a Set!`, 2800);
+      }
+    }
+
+    // Always update prevScores for all players, including self
+    prevScores[pid] = newScore;
+  }
+}
+
+// ─── Connection change detection ─────────────────────────────────────────────
+
+function detectConnectionChanges(players) {
+  const current = Object.fromEntries(
+    Object.entries(players).map(([pid, p]) => [pid, p.connected !== false])
+  );
+  if (prevConnected === null) {
+    // First snapshot — initialize without toasting
+    prevConnected = current;
+    return;
+  }
+  for (const [pid, isConnected] of Object.entries(current)) {
+    const wasConnected = prevConnected[pid] ?? true;
+    if (wasConnected && !isConnected) {
+      showToast(`${players[pid]?.name ?? 'A player'} has disconnected.`, 4000);
+    } else if (!wasConnected && isConnected) {
+      showToast(`${players[pid]?.name ?? 'A player'} has reconnected.`, 2800);
+    }
+  }
+  prevConnected = current;
+}
+
+// ─── Score panel ─────────────────────────────────────────────────────────────
+
+function renderScorePanel(players) {
+  const entries = Object.entries(players).sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
+
+  scorePanelEl.style.gridTemplateColumns = `repeat(${entries.length}, auto)`;
+  scorePanelEl.innerHTML = '';
+
+  for (const [pid, p] of entries) {
+    const isOffline = p.connected === false;
+    const card = document.createElement('div');
+    card.className = 'score-card'
+      + (pid === playerId ? ' score-card--you' : '')
+      + (isOffline ? ' score-card--offline' : '');
+    card.innerHTML = `
+      <div class="player-name">${escHtml(p.name)}${pid === playerId ? ' <span style="font-size:0.65em;opacity:0.7">(you)</span>' : ''}</div>
+      ${isOffline ? '<span class="offline-badge">offline</span>' : ''}
+      <div class="player-score">${p.score || 0}</div>
+      <div class="score-label">Sets found</div>
+    `;
+    scorePanelEl.appendChild(card);
+  }
+}
+
+// ─── Board rendering ──────────────────────────────────────────────────────────
+
+function renderBoard(boardIndices) {
+  // Clear local selection on every state update — the board may have changed
+  selected = [];
+  boardEl.innerHTML = '';
+
+  let newCardStagger = 0;
+
+  boardIndices.forEach((canonicalIdx, position) => {
+    const card = CANONICAL_DECK[canonicalIdx];
+    const el   = createCardEl(card);
+
+    el.style.setProperty('--card-rotate', `${(Math.random() * 6 - 3).toFixed(1)}deg`);
+
+    // Animate only cards that weren't on the board in the previous render
+    if (!prevBoardSet.has(canonicalIdx)) {
+      dealInCard(el, newCardStagger);
+      newCardStagger += 60;
+    }
+
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      onCardSelect(position);
+    });
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onCardSelect(position);
+      }
+    });
+
+    boardEl.appendChild(el);
+  });
+
+  prevBoardSet = new Set(boardIndices);
+}
+
+
+// ─── Status bar ───────────────────────────────────────────────────────────────
+
+function updateStatusBar() {
+  if (!gameState) return;
+  const state       = gameState;
+  const board       = state.board ?? [];
+  const deckPointer = state.deckPointer ?? 81;
+  const remaining   = 81 - deckPointer;
+
+  if (state.status === 'playing') {
+    const elapsed    = state.startedAt ? Math.floor((Date.now() - state.startedAt) / 1000) : 0;
+    const mins       = Math.floor(elapsed / 60);
+    const secs       = elapsed % 60;
+    const timerPart  = `${mins}:${secs.toString().padStart(2, '0')}`;
+    const boardCards = board.map(i => CANONICAL_DECK[i]);
+    const setCount   = findAllSets(boardCards).length;
+    const deckPart   = remaining > 0
+      ? `${remaining} ${pluralize(remaining, 'card')} in deck`
+      : 'Deck empty';
+    statusEl.textContent = `${timerPart} · ${deckPart} · ${setCount} ${pluralize(setCount, 'set')} on board`;
+  } else if (state.status === 'finished') {
+    statusEl.textContent = 'Game over';
+  }
+}
+
+// ─── Timer ────────────────────────────────────────────────────────────────────
+
+function startTimer(startedAt) {
+  if (timerInterval || !startedAt) return;
+  timerInterval = setInterval(updateStatusBar, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  // Cancel any active penalty so the countdown doesn't run after the game ends
+  clearInterval(penaltyTimerHandle);
+  penaltyTimerHandle = null;
+  penaltyOverlayEl.classList.add('hidden');
+  penaltyBarEl.classList.add('hidden');
+  cancelExtraDeal();
+}
+
+// ─── Card selection (local only — never written to RTDB) ─────────────────────
+
+function onCardSelect(position) {
+  if (busy || !gameState || gameState.status !== 'playing') return;
+
+  const idx = selected.indexOf(position);
+  if (idx !== -1) {
+    // Deselect
+    selected.splice(idx, 1);
+    updateSelectionUI();
+    return;
+  }
+  if (selected.length >= 3) return;
+
+  selected.push(position);
+  updateSelectionUI();
+
+  if (selected.length === 3) {
+    const toSubmit = selected.slice();
+    selected = [];
+    updateSelectionUI();
+    attemptClaimSet(toSubmit);
+  }
+}
+
+function updateSelectionUI() {
+  Array.from(boardEl.children).forEach((el, i) => {
+    el.classList.toggle('selected', selected.includes(i));
+  });
+}
+
+// ─── Set claim (atomic via RTDB transaction) ──────────────────────────────────
+
+async function attemptClaimSet(positions) {
+  busy = true;
+
+  // Quick local pre-check so we can flash the error immediately without a
+  // round-trip. The transaction still validates server-side for correctness.
+  const board = gameState?.board ?? [];
+  const cards = positions.map(pos => CANONICAL_DECK[board[pos]]);
+  if (positions.some(pos => pos >= board.length) || !isSet(cards[0], cards[1], cards[2])) {
+    applyPenalty(positions);
+    return; // busy stays true — clearPenalty() resets it after the countdown
+  }
+
+  try {
+    const result = await runTransaction(ref(rtdb, `games/${gameId}`), currentData => {
+      if (!currentData || currentData.status !== 'playing') return; // abort
+
+      const rtdbBoard = currentData.board ?? [];
+
+      // Guard: claimed positions must still be valid (board may have changed)
+      for (const pos of positions) {
+        if (pos < 0 || pos >= rtdbBoard.length) return; // abort
+      }
+
+      // Validate the three cards form a Set
+      const [a, b, c] = positions.map(pos => CANONICAL_DECK[rtdbBoard[pos]]);
+      if (!isSet(a, b, c)) return; // abort
+
+      // Guard: claiming player must still be in the game
+      if (!currentData.players?.[playerId]) return; // abort
+
+      // Award point
+      currentData.players[playerId].score = (currentData.players[playerId].score || 0) + 1;
+
+      // Remove claimed cards high-to-low so earlier splice indices stay valid
+      const sorted   = [...positions].sort((a, b) => b - a);
+      const newBoard = Array.from(rtdbBoard);
+      let ptr        = currentData.deckPointer ?? 81;
+
+      for (const pos of sorted) {
+        if (ptr < 81 && newBoard.length <= 12) {
+          // Replace in-place while board is at base size
+          newBoard[pos] = currentData.shuffledIndices[ptr++];
+        } else {
+          // Board has extra cards (>12) — just remove
+          newBoard.splice(pos, 1);
+        }
+      }
+
+      // If no set remains and deck has cards, deal 3 more
+      if (!hasSet(newBoard.map(i => CANONICAL_DECK[i])) && ptr < 81) {
+        const toAdd = Math.min(3, 81 - ptr);
+        for (let i = 0; i < toAdd; i++) {
+          newBoard.push(currentData.shuffledIndices[ptr++]);
+        }
+      }
+
+      currentData.board       = newBoard;
+      currentData.deckPointer = ptr;
+
+      // Detect game over: deck exhausted and no sets left
+      if (ptr >= 81 && !hasSet(newBoard.map(i => CANONICAL_DECK[i]))) {
+        let maxScore = -1;
+        let winnerId = null;
+        for (const [pid, p] of Object.entries(currentData.players)) {
+          const score = p.score || 0;
+          if (score > maxScore) {
+            maxScore = score;
+            winnerId = pid;
+          } else if (score === maxScore) {
+            winnerId = null; // tie
+          }
+        }
+        currentData.status    = 'finished';
+        currentData.finishedAt = Date.now();
+        currentData.winnerId   = winnerId;
+      }
+
+      return currentData;
+    });
+
+    if (result.committed) {
+      if (lastSetTimestamp !== null) {
+        playerSetTimes.push(Date.now() - lastSetTimestamp);
+      }
+      showToast('Set!');
+    } else {
+      // Transaction aborted — either not a set or board changed under us
+      showToast('Too slow — try another!');
+    }
+  } catch (err) {
+    showToast('Failed to submit — please try again.');
+    console.error('attemptClaimSet:', err);
+  } finally {
+    busy = false;
+  }
+}
+
+// ─── Delayed extra-deal (show toast, pause, then transact) ───────────────────
+
+function scheduleExtraDeal() {
+  if (extraDealTimeout) return;                      // already scheduled
+  if ((gameState?.deckPointer ?? 81) >= 81) return;  // deck exhausted — nothing to deal
+  showToast('No sets on the board — dealing 3 more cards…', 2800);
+  extraDealTimeout = setTimeout(() => {
+    extraDealTimeout = null;
+    ensureSetOnBoard();
+  }, 3000);
+}
+
+function cancelExtraDeal() {
+  if (!extraDealTimeout) return;
+  clearTimeout(extraDealTimeout);
+  extraDealTimeout = null;
+}
+
+// ─── Auto-deal when no set is on the board ────────────────────────────────────
+
+async function ensureSetOnBoard() {
+  if (!gameState || gameState.status !== 'playing') return;
+
+  const board = gameState.board ?? [];
+  if (hasSet(board.map(i => CANONICAL_DECK[i]))) return; // already fine
+  if ((gameState.deckPointer ?? 81) >= 81) return;        // no cards left to deal
+
+  // Any client can submit this transaction; only the first commit wins
+  try {
+    await runTransaction(ref(rtdb, `games/${gameId}`), currentData => {
+      if (!currentData || currentData.status !== 'playing') return;
+
+      const rtdbBoard = currentData.board ?? [];
+      if (hasSet(rtdbBoard.map(i => CANONICAL_DECK[i]))) return; // another client already dealt
+      if (currentData.deckPointer >= 81) return;
+
+      const newBoard = Array.from(rtdbBoard);
+      let ptr        = currentData.deckPointer;
+      const toAdd    = Math.min(3, 81 - ptr);
+      for (let i = 0; i < toAdd; i++) {
+        newBoard.push(currentData.shuffledIndices[ptr++]);
+      }
+
+      currentData.board       = newBoard;
+      currentData.deckPointer = ptr;
+      return currentData;
+    });
+  } catch (err) {
+    console.error('ensureSetOnBoard:', err);
+  }
+}
+
+// ─── Penalty (invalid set submission) ────────────────────────────────────────
+
+function applyPenalty(positions) {
+  mistakeCount++;
+  const penaltySeconds = nextPenaltySecs;
+  nextPenaltySecs++;
+
+  // 1. Flash the cards red
+  const cardEls = Array.from(boardEl.children);
+  positions.forEach(pos => cardEls[pos]?.classList.add('flash-error'));
+  setTimeout(() => {
+    positions.forEach(pos => cardEls[pos]?.classList.remove('flash-error'));
+  }, 650);
+
+  // 2. Toast message
+  showToast(`Not a set: ${penaltySeconds}-second penalty.`, 2800);
+
+  // 3. Dim board (also blocks pointer events via CSS .board--penalized)
+  boardEl.classList.add('board--penalized');
+
+  // 4. Show overlay tint and initialize the countdown banner
+  penaltyOverlayEl.classList.remove('hidden');
+  penaltyCountdownEl.textContent = penaltySeconds.toFixed(1);
+  penaltyBarEl.classList.remove('hidden');
+
+  // 5. Tick the countdown every 100ms using a wall-clock deadline to
+  //    avoid drift — remaining time is always computed from Date.now().
+  const penaltyEnd = Date.now() + penaltySeconds * 1000;
+  clearInterval(penaltyTimerHandle);
+  penaltyTimerHandle = setInterval(() => {
+    const remainingMs = penaltyEnd - Date.now();
+    penaltyCountdownEl.textContent = (Math.max(0, remainingMs) / 1000).toFixed(1);
+    if (remainingMs <= 0) {
+      clearPenalty();
+    }
+  }, 100);
+}
+
+function clearPenalty() {
+  if (!penaltyTimerHandle && penaltyBarEl.classList.contains('hidden')) return; // already cleared
+
+  clearInterval(penaltyTimerHandle);
+  penaltyTimerHandle = null;
+
+  boardEl.classList.remove('board--penalized');
+  penaltyOverlayEl.classList.add('hidden');
+  penaltyBarEl.classList.add('hidden');
+  busy = false; // re-enable card selection
+}
+
+// ─── Game over ───────────────────────────────────────────────────────────────
+
+async function showGameOver(state) {
+  clearPenalty(); // ensure busy=false and penalty UI dismissed even if game ends mid-penalty
+  if (modalOverlay.classList.contains('hidden') === false) return; // already shown
+
+  const players  = state.players ?? {};
+  const winnerId = state.winnerId;
+
+  // Result headline
+  if (winnerId === playerId) {
+    modalResult.textContent = 'You win!';
+  } else if (winnerId) {
+    modalResult.textContent = `${players[winnerId]?.name ?? 'Someone'} wins!`;
+  } else {
+    modalResult.textContent = "It's a tie!";
+  }
+
+  // Final scores, sorted descending
+  modalScores.innerHTML = Object.entries(players)
+    .sort((a, b) => (b[1].score || 0) - (a[1].score || 0))
+    .map(([pid, p]) => `
+      <div class="final-score-row">
+        <span>${escHtml(p.name)}${pid === playerId ? ' <em style="opacity:0.6;font-size:0.85em">(you)</em>' : ''}</span>
+        <span>${p.score || 0} Set${p.score !== 1 ? 's' : ''}</span>
+      </div>
+    `)
+    .join('');
+
+  modalOverlay.classList.remove('hidden');
+
+  // Save to Firestore for signed-in players (once per client)
+  if (currentUser && !gameSaved) {
+    gameSaved = true;
+    const avgSetTimeMs = playerSetTimes.length
+      ? Math.round(playerSetTimes.reduce((a, b) => a + b, 0) / playerSetTimes.length)
+      : null;
+    const fastestSetMs = playerSetTimes.length ? Math.min(...playerSetTimes) : null;
+    try {
+      await saveMultiplayerGame(state, playerId, currentUser.uid,
+        { mistakeCount, setTimesMs: [...playerSetTimes], avgSetTimeMs, fastestSetMs });
+      saveNudgeEl.textContent = '✓ Results saved to your history.';
+    } catch (err) {
+      console.error('saveMultiplayerGame:', err);
+    }
+  }
+}
+
+

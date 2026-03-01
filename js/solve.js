@@ -73,13 +73,13 @@ function renderBoard() {
   solveBoardEl.innerHTML = '';
 
   if (boardIndices.size === 0) {
-    boardEmptyMsg.style.display = '';
+    boardEmptyMsg.classList.remove('hidden');
     solveBoardEl.appendChild(boardEmptyMsg);
     boardCountEl.textContent = '(0 cards)';
     return;
   }
 
-  boardEmptyMsg.style.display = 'none';
+  boardEmptyMsg.classList.add('hidden');
   boardCountEl.textContent = `(${boardIndices.size} ${pluralize(boardIndices.size, 'card')})`;
 
   for (const idx of [...boardIndices].sort((a, b) => a - b)) {
@@ -118,7 +118,7 @@ function findAndDisplaySets() {
   const sets = findAllSets(boardCards);
 
   setsResultList.innerHTML = '';
-  resultsLabel.style.display = '';
+  resultsLabel.classList.remove('hidden');
 
   if (sets.length === 0) {
     const msg = document.createElement('p');
@@ -134,7 +134,7 @@ function findAndDisplaySets() {
 }
 
 function clearResults() {
-  resultsLabel.style.display = 'none';
+  resultsLabel.classList.add('hidden');
   setsResultList.innerHTML = '';
 }
 
