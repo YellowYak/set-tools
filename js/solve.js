@@ -143,7 +143,7 @@ function renderSets() {
     resultsLabel.textContent = 'No Sets Found';
     const msg = document.createElement('p');
     msg.className = 'no-sets-msg';
-    msg.textContent = boardCards.length < 3
+    msg.textContent = boardIndices.size < 3
       ? 'Add at least 3 cards to the board to search for Sets.'
       : 'No Sets found in the current board.';
     setsResultList.appendChild(msg);
