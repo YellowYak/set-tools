@@ -53,3 +53,62 @@ export async function saveGame(data) {
     completedAt: serverTimestamp(),
   });
 }
+
+/**
+ * Save a completed multiplayer game to Firestore for one signed-in player.
+ * Called once per client when the game ends.
+ *
+ * Each signed-in player independently saves their own record.  The record
+ * uses the same /games Firestore collection as solo/vs-computer games, with
+ * gameMode: 'multiplayer' and an extra `opponents` field.
+ *
+ * @param {Object} rtdbGame    Full /games/{gameId} RTDB snapshot value
+ * @param {string} myPlayerId  The caller's RTDB player id (uid or guest_xxx)
+ * @param {string} uid         Firebase Auth uid of the caller
+ * @param {Object} localStats  Client-side stats: { mistakeCount, setTimesMs, avgSetTimeMs, fastestSetMs }
+ * @returns {Promise<void>}
+ */
+export async function saveMultiplayerGame(rtdbGame, myPlayerId, uid, localStats = {}) {
+  const players = rtdbGame.players ?? {};
+  const myData  = players[myPlayerId] ?? {};
+  const myScore = myData.score ?? 0;
+
+  let outcome = null;
+  if (rtdbGame.winnerId === myPlayerId) {
+    outcome = 'win';
+  } else if (rtdbGame.winnerId) {
+    outcome = 'loss';
+  } else {
+    outcome = 'tie';
+  }
+
+  const opponents = Object.entries(players)
+    .filter(([pid]) => pid !== myPlayerId)
+    .map(([, p]) => ({ name: p.name ?? 'Unknown', score: p.score ?? 0 }));
+
+  const durationMs = (rtdbGame.finishedAt && rtdbGame.startedAt)
+    ? rtdbGame.finishedAt - rtdbGame.startedAt
+    : null;
+
+  const db = getFirestore(app);
+  await addDoc(collection(db, 'games'), {
+    uid,
+    gameMode:        'multiplayer',
+    playerSets:      myScore,
+    outcome,
+    opponents,
+    playerCount:     Object.keys(players).length,
+    durationMs,
+    mistakeCount:    localStats.mistakeCount  ?? null,
+    setTimesMs:      localStats.setTimesMs    ?? null,
+    avgSetTimeMs:    localStats.avgSetTimeMs  ?? null,
+    fastestSetMs:    localStats.fastestSetMs  ?? null,
+    // Fields that don't apply to multiplayer
+    difficulty:      null,
+    computerSets:    null,
+    hintsUsed:       null,
+    extraCardsDealt: null,
+    slowestSetMs:    null,
+    completedAt:     serverTimestamp(),
+  });
+}

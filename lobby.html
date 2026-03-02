@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multiplayer Lobby — Set</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+<body>
+
+<!-- ── Site Header ── -->
+<header class="site-header">
+  <a href="index.html" class="logo">Set</a>
+  <nav class="site-nav" aria-label="Main navigation">
+    <a href="index.html">Home</a>
+    <a href="play.html">Play</a>
+    <a href="solve.html">Solve</a>
+  </nav>
+</header>
+
+<!-- ── Guest Name Modal ── -->
+<div class="modal-overlay hidden" id="name-modal" role="dialog" aria-modal="true" aria-labelledby="name-modal-title">
+  <div class="modal">
+    <h2 id="name-modal-title">Choose Your Name</h2>
+    <p style="color:#a8c8a0;margin-bottom:20px;font-size:0.9rem">
+      Other players will see this name during the game.
+    </p>
+    <form id="name-form">
+      <input class="auth-input" id="name-input" type="text"
+             placeholder="Your display name" maxlength="24" autocomplete="off" required>
+      <p class="auth-error hidden" id="name-error"></p>
+      <button class="btn btn-primary" type="submit"
+              style="width:100%;margin-top:16px">Continue</button>
+    </form>
+  </div>
+</div>
+
+<main class="page-content">
+
+  <!-- ── Entry Panel ── -->
+  <div id="lobby-entry">
+
+    <h1 class="history-heading">Multiplayer</h1>
+
+    <!-- Create game -->
+    <div class="lobby-section">
+      <p class="section-label">Create a New Game</p>
+      <div class="lobby-create-row">
+        <div class="lobby-count-row">
+          <span class="lobby-count-label">Players:</span>
+          <div class="lobby-count-radios" id="player-count-form" role="group" aria-label="Number of players">
+            <label class="lobby-count-option">
+              <input type="radio" name="player-count" value="2" checked> 2
+            </label>
+            <label class="lobby-count-option">
+              <input type="radio" name="player-count" value="3"> 3
+            </label>
+            <label class="lobby-count-option">
+              <input type="radio" name="player-count" value="4"> 4
+            </label>
+          </div>
+        </div>
+        <label class="lobby-private-option" for="game-private-toggle">
+          <input type="checkbox" id="game-private-toggle"> Private (invite-only)
+        </label>
+        <button class="btn btn-primary" id="btn-create-game">Create Game</button>
+      </div>
+      <p class="auth-error hidden" id="create-error"></p>
+    </div>
+
+    <!-- Join by code / link -->
+    <div class="lobby-section">
+      <p class="section-label">Join a Game</p>
+      <div class="lobby-join-row">
+        <input class="auth-input" id="join-code-input" type="text"
+               placeholder="Game ID or invite link" autocomplete="off">
+        <button class="btn btn-secondary" id="btn-join-code">Join</button>
+      </div>
+    </div>
+
+    <!-- Public game list -->
+    <div class="lobby-section">
+      <div class="lobby-list-header">
+        <p class="section-label" style="margin-bottom:0">Open Games</p>
+        <button class="btn btn-secondary lobby-refresh-btn" id="btn-refresh">Refresh</button>
+      </div>
+      <div id="lobby-game-items"></div>
+      <p class="lobby-empty-msg hidden" id="lobby-no-games">No open games right now — create one!</p>
+    </div>
+
+  </div><!-- /lobby-entry -->
+
+  <!-- ── Waiting Room ── -->
+  <div id="lobby-waiting" class="hidden">
+
+    <h1 class="history-heading" id="waiting-title">Waiting for Players</h1>
+
+    <!-- Share link -->
+    <div class="lobby-section">
+      <p class="section-label">Invite Friends</p>
+      <div class="lobby-link-row">
+        <input class="auth-input lobby-link-input" id="lobby-link-display"
+               type="text" readonly aria-label="Invite link">
+        <button class="btn btn-secondary" id="btn-copy-link">Copy</button>
+      </div>
+      <p class="lobby-private-notice hidden" id="lobby-private-notice">
+        Private game — players must use the link above to join. This game does not appear in the public lobby.
+      </p>
+    </div>
+
+    <!-- Player list -->
+    <div class="lobby-section">
+      <p class="section-label">Players</p>
+      <div id="lobby-player-list"></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="lobby-waiting-actions">
+      <button class="btn btn-primary hidden" id="btn-start-game">Start Game</button>
+      <p class="lobby-waiting-msg hidden" id="lobby-waiting-msg">Waiting for the host to start…</p>
+      <button class="btn btn-secondary" id="btn-leave-game">Leave Game</button>
+    </div>
+    <p class="auth-error hidden" id="lobby-start-error"></p>
+
+  </div><!-- /lobby-waiting -->
+
+</main>
+
+<script type="module" src="js/lobby.js"></script>
+<script type="module" src="js/auth.js"></script>
+</body>
+</html>

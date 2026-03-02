@@ -19,6 +19,7 @@ import { createCardEl, renderSetList } from './card-render.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js';
 import { auth } from './firebase-init.js';
 import { saveGame } from './db.js';
+import { showToast, dealInCard } from './utils.js';
 
 // ── DOM References ──────────────────────────────────────────
 const boardEl            = document.getElementById('board');
@@ -44,7 +45,8 @@ const modalMode          = document.getElementById('modal-mode');
 const modalDifficulty    = document.getElementById('modal-difficulty');
 const btnSolo            = document.getElementById('btn-solo');
 const btnVsComputer      = document.getElementById('btn-vs-computer');
-const btnBackToMode      = document.getElementById('btn-back-to-mode');
+const btnBackToMode          = document.getElementById('btn-back-to-mode');
+const computerDifficultyEl   = document.getElementById('computer-difficulty');
 
 // ── Game Mode Constants ─────────────────────────────────────
 const MODE_SOLO        = 'solo';
@@ -157,8 +159,7 @@ function startGame() {
   btnHint.classList.toggle('hidden', gameMode !== MODE_SOLO);
   btnShowSets.classList.toggle('hidden', gameMode !== MODE_SOLO);
   scoreComputerCardEl.classList.toggle('hidden', gameMode !== MODE_VS_COMPUTER);
-  document.getElementById('computer-difficulty').textContent =
-    gameMode === MODE_VS_COMPUTER ? difficulty : '';
+  computerDifficultyEl.textContent = gameMode === MODE_VS_COMPUTER ? difficulty : '';
 
   paused = false;
   pausedElapsed = 0;
@@ -248,9 +249,9 @@ function removeCards(indices) {
  */
 function replaceOrRemoveCards(indices) {
   if (board.length <= 12 && deck.length >= 3) {
-    const sorted = [...indices].map((idx, i) => ({ idx, i }))
+    const sorted = [...indices].map((idx, staggerOrder) => ({ idx, staggerOrder }))
                                .sort((a, b) => b.idx - a.idx);
-    for (const { idx, i } of sorted) replaceCard(idx, i * REPLACE_STAGGER_MS);
+    for (const { idx, staggerOrder } of sorted) replaceCard(idx, staggerOrder * REPLACE_STAGGER_MS);
   } else {
     removeCards(indices);
   }
@@ -300,7 +301,8 @@ function onCardKeyDown(e) {
     e.preventDefault();
     if (busy || paused) return;
     const idx = indexOfEl(e.currentTarget);
-    if (idx !== -1) toggleSelect(idx);
+    if (idx === -1) return;
+    toggleSelect(idx);
   }
 }
 
@@ -446,21 +448,6 @@ function flyCardsToScore(els, targetEl, onComplete) {
   setTimeout(onComplete, TOTAL_MS);
 }
 
-// ── Deal-In Animation ─────────────────────────────────────────
-/**
- * Apply the deal-in CSS animation to a card element.
- * @param {Element} el
- * @param {number}  delayMs
- */
-function dealInCard(el, delayMs) {
-  el.style.animationDelay = `${delayMs}ms`;
-  el.classList.add('dealing');
-  el.addEventListener('animationend', () => {
-    el.classList.remove('dealing');
-    el.style.animationDelay = '';
-  }, { once: true });
-}
-
 // ── Error ────────────────────────────────────────────────────
 function handleError(els) {
   busy = true;
@@ -479,32 +466,6 @@ function handleError(els) {
     selected = [];
     busy = false;
   }, ERROR_FLASH_MS);
-}
-
-// ── Toast ─────────────────────────────────────────────────────
-let toastContainer = null;
-
-/**
- * Display a brief toast message at the bottom of the screen.
- * @param {string} message
- * @param {number} duration  ms before the toast fades out
- */
-function showToast(message, duration = 2800) {
-  if (!toastContainer) {
-    toastContainer = document.createElement('div');
-    toastContainer.id = 'toast-container';
-    document.body.appendChild(toastContainer);
-  }
-
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.textContent = message;
-  toastContainer.appendChild(toast);
-
-  setTimeout(() => {
-    toast.classList.add('hiding');
-    toast.addEventListener('animationend', () => toast.remove(), { once: true });
-  }, duration);
 }
 
 // ── Hint ─────────────────────────────────────────────────────
