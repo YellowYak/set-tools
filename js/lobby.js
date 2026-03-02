@@ -335,7 +335,7 @@ async function joinGame(gameId) {
       return;
     }
 
-    if (!result.exists()) {
+    if (!result.snapshot.exists()) {
       showToast('Game not found.');
       return;
     }
@@ -349,7 +349,7 @@ async function joinGame(gameId) {
 
     // Transaction committed: atomically increment the lobby player count.
     // Private games have no lobby entry — updating a missing RTDB path would create one.
-    if (!result.val().isPrivate) {
+    if (!result.snapshot.val().isPrivate) {
       await update(ref(rtdb, `lobbies/${gameId}`), { playerCount: increment(1) });
     }
 
@@ -383,7 +383,11 @@ function enterWaitingRoom(gameId) {
     renderWaitingRoom(game, gameId);
     if (game.status === 'playing') {
       if (unsubGame) { unsubGame(); unsubGame = null; }
-      window.location.href = `multi-play.html?game=${gameId}`;
+      // Cancel the per-player onDisconnect hook before navigating so that closing
+      // the lobby WebSocket during page navigation does not write connected:false.
+      onDisconnect(ref(rtdb, `games/${gameId}/players/${playerId}/connected`)).cancel()
+        .then(() => { window.location.href = `multi-play.html?game=${gameId}`; })
+        .catch(() => { window.location.href = `multi-play.html?game=${gameId}`; });
     }
   });
 }

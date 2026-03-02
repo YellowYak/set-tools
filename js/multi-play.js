@@ -9,7 +9,7 @@
  */
 
 import {
-  ref, onValue, runTransaction,
+  ref, onValue, runTransaction, update, onDisconnect,
 } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js';
 import { auth, rtdb }    from './firebase-init.js';
@@ -47,7 +47,8 @@ let prevBoardSet    = new Set();  // canonical indices rendered in the previous 
 let prevScores      = null;       // null = not yet initialized; populated on first state update
 let prevConnected   = null;       // null = not yet initialized; { [playerId]: boolean }
 let timerInterval   = null;
-let extraDealTimeout = null;      // pending setTimeout handle for the no-set extra-deal pause
+let extraDealTimeout    = null;   // pending setTimeout handle for the no-set extra-deal pause
+let presenceEstablished = false;  // true once connected:true is written for this page load
 
 // ─── DOM references ───────────────────────────────────────────────────────────
 const scorePanelEl     = document.getElementById('mp-score-panel');
@@ -66,9 +67,38 @@ const penaltyCountdownEl = document.getElementById('penalty-countdown');
 onAuthStateChanged(auth, user => {
   currentUser = user;
   playerId    = getPlayerId(user);
+  // If the first RTDB snapshot arrived before auth resolved (auth.currentUser
+  // was null at module init), presence won't have been established yet. Retry
+  // now that we have the correct playerId.
+  if (gameState) tryEstablishPresence(gameState);
 });
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
+
+// Re-establish presence once we have the correct playerId and a confirmed game
+// snapshot. Extracted so it can be called from both the onValue callback and
+// onAuthStateChanged (to handle the race where auth resolves after the first
+// snapshot, leaving presenceEstablished false with a stale guest playerId).
+let snapshotSeq = 0;
+function tryEstablishPresence(state) {
+  const myData = state.players?.[playerId];
+  if (!myData) return;
+
+  // Register this page's onDisconnect hook exactly once (not guarded by
+  // presenceEstablished so that it survives the auth-race retry path).
+  if (!presenceEstablished) {
+    presenceEstablished = true;
+    onDisconnect(ref(rtdb, `games/${gameId}/players/${playerId}/connected`)).set(false);
+  }
+
+  // Write connected:true on every snapshot that shows us as offline.
+  // This handles two races:
+  //   Race A — auth resolved after first snapshot (playerId was stale guest id)
+  //   Race B — lobby's onDisconnect fired after first snapshot (connected → false)
+  if (myData.connected === false) {
+    update(ref(rtdb, `games/${gameId}/players/${playerId}`), { connected: true });
+  }
+}
 
 if (!gameId) {
   window.location.href = 'lobby.html';
@@ -82,7 +112,18 @@ if (!gameId) {
       window.location.href = 'lobby.html';
       return;
     }
-    handleStateUpdate(snap.val());
+    const seq = ++snapshotSeq;
+    const val = snap.val();
+
+    // Navigating from lobby.html closes that page's WebSocket, firing the
+    // onDisconnect hook set in lobby.js (connected:false). Re-establish here.
+    tryEstablishPresence(val);
+    // tryEstablishPresence may call update() which Firebase applies optimistically,
+    // firing this onValue callback re-entrantly with the corrected state. That
+    // re-entrant call increments _snapshotSeq. If so, this outer call now holds
+    // stale data — skip handleStateUpdate to avoid overwriting the correct render.
+    if (seq !== snapshotSeq) return;
+    handleStateUpdate(val);
   });
 }
 
@@ -203,7 +244,7 @@ function renderBoard(boardIndices) {
   selected = [];
   boardEl.innerHTML = '';
 
-  let newCardStagger = 0;
+  let dealStaggerMs = 0;
 
   boardIndices.forEach((canonicalIdx, position) => {
     const card = CANONICAL_DECK[canonicalIdx];
@@ -213,8 +254,8 @@ function renderBoard(boardIndices) {
 
     // Animate only cards that weren't on the board in the previous render
     if (!prevBoardSet.has(canonicalIdx)) {
-      dealInCard(el, newCardStagger);
-      newCardStagger += 60;
+      dealInCard(el, dealStaggerMs);
+      dealStaggerMs += 60;
     }
 
     el.addEventListener('pointerdown', e => {

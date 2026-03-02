@@ -150,8 +150,6 @@ Multiplayer games are hosted and synchronized via Firebase Realtime Database. An
 │   ├── firebase-init.js    Firebase app singleton — exports app, auth, and rtdb
 │   ├── db.js               Firestore helpers — saveGame(), saveMultiplayerGame(), getGames()
 │   └── utils.js            Shared UI helpers — showToast(), escHtml(), dealInCard()
-└── assets/
-    └── set-card-prototype.html   Visual reference for SVG shapes and fills
 ```
 
 ## Technical Notes
