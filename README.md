@@ -100,8 +100,8 @@ Multiplayer games are hosted and synchronized via Firebase Realtime Database. An
 - Invalid Set: cards flash red and deselect
 - New replacement cards deal in from off-screen with a staggered animation
 - **Hint system** *(single player only)* — progressive, one card revealed per click:
-  - 1st click: one card from a valid Set is highlighted
-  - 2nd click: a second card from the same Set
+  - 1st click: one card from a randomly chosen valid Set is highlighted
+  - 2nd click: a second card from the same Set (revealed in random order)
   - 3rd click: the third card
   - Further clicks: reminder that all three are shown
   - Hint resets automatically when a Set is completed
@@ -114,10 +114,11 @@ Multiplayer games are hosted and synchronized via Firebase Realtime Database. An
 - **Game history** — signed-in users have their completed game saved automatically; guests see a gentle "Sign in to save" nudge with a one-click sign-in button. If a guest signs in directly from the game-over modal, the just-completed game is saved retroactively
 
 ### Solve page
-- Browse all 81 cards in a scrollable picker; click any card to add/remove it from the board
-- **Deal 12 Random** — populate the board instantly for quick practice
-- **Find All Sets** — exhaustive search; results shown as grouped mini-card triplets
+- Browse all 81 cards in a scrollable sticky picker; click any card to add/remove it from the board
+- **Deal 12 Random** — populate the board instantly and immediately show all found Sets
+- **Find All Sets** — exhaustive search; results shown as grouped mini-card triplets labelled "Sets Found (N)"
 - **Clear Board** — reset to an empty board
+- **Deep linking** — the URL querystring reflects the current board state; share or bookmark any board and it will be restored automatically on arrival
 
 ## Project Structure
 

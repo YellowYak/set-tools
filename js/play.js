@@ -481,11 +481,11 @@ function showHint() {
   if (busy || paused) return;
 
   if (hintStep === 0) {
-    // Choose a Set to hint at
+    // Choose a random Set to hint at, then shuffle the reveal order
     const sets = findAllSets(board);
     if (sets.length === 0) return;
-    const [a, b, c] = sets[0];
-    hintSetIndices = [board.indexOf(a), board.indexOf(b), board.indexOf(c)];
+    const set = sets[Math.floor(Math.random() * sets.length)];
+    hintSetIndices = shuffle(set.map(card => board.indexOf(card)));
   }
 
   if (hintStep < 3) {

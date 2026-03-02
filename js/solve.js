@@ -111,6 +111,7 @@ function dealRandom() {
     boardIndices.add(shuffled[i]);
   }
   syncBoardUI();
+  findAndDisplaySets();
 }
 
 // ── Set finder ────────────────────────────────────────────────
@@ -122,6 +123,7 @@ function findAndDisplaySets() {
   resultsLabel.classList.remove('hidden');
 
   if (sets.length === 0) {
+    resultsLabel.textContent = 'No Sets Found';
     const msg = document.createElement('p');
     msg.className = 'no-sets-msg';
     msg.textContent = boardCards.length < 3
@@ -131,6 +133,7 @@ function findAndDisplaySets() {
     return;
   }
 
+  resultsLabel.textContent = `Sets Found (${sets.length})`;
   renderSetList(sets, setsResultList);
 }
 
@@ -139,11 +142,39 @@ function clearResults() {
   setsResultList.innerHTML = '';
 }
 
+// ── URL / deep-link sync ──────────────────────────────────────
+function syncQueryString() {
+  if (boardIndices.size === 0) {
+    history.replaceState(null, '', location.pathname);
+  } else {
+    const sorted = [...boardIndices].sort((a, b) => a - b);
+    const params = new URLSearchParams({ cards: sorted.join(',') });
+    history.replaceState(null, '', `${location.pathname}?${params}`);
+  }
+}
+
+function loadFromQueryString() {
+  const cardsParam = new URLSearchParams(location.search).get('cards');
+  if (!cardsParam) return;
+
+  const indices = cardsParam.split(',')
+    .map(s => parseInt(s, 10))
+    .filter(n => Number.isInteger(n) && n >= 0 && n < allCards.length);
+
+  for (const idx of indices) boardIndices.add(idx);
+
+  if (boardIndices.size > 0) {
+    syncBoardUI();
+    findAndDisplaySets();
+  }
+}
+
 /** Sync all board-dependent UI after any change to boardIndices. */
 function syncBoardUI() {
   renderBoard();
   updatePickerHighlights();
   clearResults();
+  syncQueryString();
 }
 
 // ── Event Wiring ──────────────────────────────────────────────
@@ -153,4 +184,5 @@ btnClearBoard.addEventListener('click', clearBoard);
 
 // ── Init ──────────────────────────────────────────────────────
 renderPicker();
-renderBoard();
+loadFromQueryString();
+if (boardIndices.size === 0) renderBoard();

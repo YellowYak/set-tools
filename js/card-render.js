@@ -88,9 +88,23 @@ export function createCardEl(card) {
   return div;
 }
 
+const COLOR_ORDER = { red: 0, green: 1, purple: 2 };
+const FILL_ORDER  = { solid: 0, striped: 1, open: 2 };
+const SHAPE_ORDER = { oval: 0, diamond: 1, squiggle: 2 };
+
+function sortTriplet(triplet) {
+  return [...triplet].sort((a, b) =>
+    (a.count               - b.count)               ||
+    (COLOR_ORDER[a.color]  - COLOR_ORDER[b.color])  ||
+    (FILL_ORDER[a.fill]    - FILL_ORDER[b.fill])     ||
+    (SHAPE_ORDER[a.shape]  - SHAPE_ORDER[b.shape])
+  );
+}
+
 /**
  * Render a list of Set triplets into a container element.
  * Appends one set-result-item per triplet (does not clear the container first).
+ * Cards within each triplet are sorted by count → color → fill → shape.
  * @param {Array<Array>} sets        - Array of card triplets from findAllSets()
  * @param {HTMLElement}  containerEl - Element to append items into
  */
@@ -106,7 +120,7 @@ export function renderSetList(sets, containerEl) {
 
     const cardsRow = document.createElement('div');
     cardsRow.className = 'set-result-cards';
-    for (const card of triplet) {
+    for (const card of sortTriplet(triplet)) {
       cardsRow.appendChild(createCardEl(card));
     }
     item.appendChild(cardsRow);

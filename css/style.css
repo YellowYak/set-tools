@@ -589,6 +589,7 @@ a {
 }
 
 .solve-board-empty {
+  grid-column: 1 / -1;
   color: #7aaa72;
   font-size: 0.875rem;
   padding: 20px 0;
@@ -644,6 +645,12 @@ a {
 
 /* Card picker */
 .card-picker-panel {
+  display: flex;
+  flex-direction: column;
+  align-self: start;
+  position: sticky;
+  top: 20px;
+  max-height: calc(100vh - 130px);
   background: rgba(0,0,0,0.2);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 12px;
@@ -657,8 +664,10 @@ a {
 .card-picker-grid {
   display: flex;
   flex-wrap: wrap;
+  align-content: start;
   gap: 8px;
-  max-height: 600px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
 }
