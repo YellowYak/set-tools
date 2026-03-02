@@ -9,6 +9,7 @@
 import { createDeck, shuffle, pluralize } from './deck.js';
 import { findAllSets } from './set-logic.js';
 import { createCardEl, renderSetList } from './card-render.js';
+import { randomRotation } from './utils.js';
 
 // ── DOM References ───────────────────────────────────────────
 const solveBoardEl   = document.getElementById('solve-board');
@@ -33,6 +34,12 @@ const boardIndices = new Set();
 
 /** Standard number of cards on the board (fewer only when the deck runs short). */
 const BOARD_SIZE = 12;
+
+/** Whether the sets results panel is currently visible. */
+let setsVisible = false;
+
+/** Cached rotation per deck index so cards don't re-tilt on every board re-render. */
+const cardRotations = new Map();
 
 // ── Event wiring helper ───────────────────────────────────────
 /**
@@ -82,9 +89,11 @@ function renderBoard() {
   boardEmptyMsg.classList.add('hidden');
   boardCountEl.textContent = `(${boardIndices.size} ${pluralize(boardIndices.size, 'card')})`;
 
-  for (const idx of [...boardIndices].sort((a, b) => a - b)) {
+  for (const idx of boardIndices) {
     const card = allCards[idx];
     const el = createCardEl(card);
+    if (!cardRotations.has(idx)) cardRotations.set(idx, randomRotation());
+    el.style.setProperty('--card-rotate', cardRotations.get(idx));
     addCardListeners(el, () => toggleCardOnBoard(idx));
     solveBoardEl.appendChild(el);
   }
@@ -101,26 +110,30 @@ function updatePickerHighlights() {
 
 function clearBoard() {
   boardIndices.clear();
+  cardRotations.clear();
+  setsVisible = false;
   syncBoardUI();
 }
 
 function dealRandom() {
   boardIndices.clear();
+  cardRotations.clear();
   const shuffled = shuffle([...Array(allCards.length).keys()]);
   for (let i = 0; i < Math.min(BOARD_SIZE, shuffled.length); i++) {
     boardIndices.add(shuffled[i]);
   }
   syncBoardUI();
-  findAndDisplaySets();
 }
 
 // ── Set finder ────────────────────────────────────────────────
-function findAndDisplaySets() {
+/** Renders the current sets into the results panel. Does not change setsVisible. */
+function renderSets() {
   const boardCards = [...boardIndices].map(i => allCards[i]);
   const sets = findAllSets(boardCards);
 
   setsResultList.innerHTML = '';
   resultsLabel.classList.remove('hidden');
+  btnFindSets.textContent = 'Hide Sets';
 
   if (sets.length === 0) {
     resultsLabel.textContent = 'No Sets Found';
@@ -164,8 +177,8 @@ function loadFromQueryString() {
   for (const idx of indices) boardIndices.add(idx);
 
   if (boardIndices.size > 0) {
+    setsVisible = true;
     syncBoardUI();
-    findAndDisplaySets();
   }
 }
 
@@ -173,16 +186,32 @@ function loadFromQueryString() {
 function syncBoardUI() {
   renderBoard();
   updatePickerHighlights();
-  clearResults();
   syncQueryString();
+
+  if (setsVisible) {
+    renderSets();
+  } else {
+    clearResults();
+    const count = findAllSets([...boardIndices].map(i => allCards[i])).length;
+    btnFindSets.textContent = `Reveal Sets (${count})`;
+  }
 }
 
 // ── Event Wiring ──────────────────────────────────────────────
 btnRandom.addEventListener('click', dealRandom);
-btnFindSets.addEventListener('click', findAndDisplaySets);
+btnFindSets.addEventListener('click', () => {
+  setsVisible = !setsVisible;
+  if (setsVisible) {
+    renderSets();
+  } else {
+    clearResults();
+    const count = findAllSets([...boardIndices].map(i => allCards[i])).length;
+    btnFindSets.textContent = `Reveal Sets (${count})`;
+  }
+});
 btnClearBoard.addEventListener('click', clearBoard);
 
 // ── Init ──────────────────────────────────────────────────────
 renderPicker();
 loadFromQueryString();
-if (boardIndices.size === 0) renderBoard();
+if (boardIndices.size === 0) syncBoardUI();

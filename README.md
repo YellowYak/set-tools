@@ -116,7 +116,7 @@ Multiplayer games are hosted and synchronized via Firebase Realtime Database. An
 ### Solve page
 - Browse all 81 cards in a scrollable sticky picker; click any card to add/remove it from the board
 - **Deal 12 Random** — populate the board instantly and immediately show all found Sets
-- **Find All Sets** — exhaustive search; results shown as grouped mini-card triplets labelled "Sets Found (N)"
+- **Reveal Sets (N) / Hide Sets** — toggle button; shows all Sets as grouped mini-card triplets labelled "Sets Found (N)", updates live as cards are added or removed
 - **Clear Board** — reset to an empty board
 - **Deep linking** — the URL querystring reflects the current board state; share or bookmark any board and it will be restored automatically on arrival
 
@@ -150,7 +150,7 @@ Multiplayer games are hosted and synchronized via Firebase Realtime Database. An
 │   ├── history.js          History page — loads, filters, sorts, and paginates game records
 │   ├── firebase-init.js    Firebase app singleton — exports app, auth, and rtdb
 │   ├── db.js               Firestore helpers — saveGame(), saveMultiplayerGame(), getGames()
-│   └── utils.js            Shared UI helpers — showToast(), escHtml(), dealInCard()
+│   └── utils.js            Shared UI helpers — showToast(), escHtml(), dealInCard(), randomRotation()
 ```
 
 ## Technical Notes

@@ -18,7 +18,7 @@ import { isSet, hasSet, findAllSets } from './set-logic.js';
 import { createCardEl }  from './card-render.js';
 import { saveMultiplayerGame } from './db.js';
 import { getPlayerId } from './guest-identity.js';
-import { showToast, escHtml, dealInCard } from './utils.js';
+import { showToast, escHtml, dealInCard, randomRotation } from './utils.js';
 
 // ─── Canonical deck (deterministic — createDeck() always returns the same 81 cards) ──
 const CANONICAL_DECK = createDeck();
@@ -40,6 +40,7 @@ let mistakeCount      = 0;    // invalid submissions by this player this game
 let playerSetTimes    = [];   // ms elapsed for each Set this player found
 let lastSetTimestamp  = null; // Date.now() at game start or after the last set was found
 
+const DEAL_STAGGER_MS  = 60;   // delay between successive cards dealing in
 const ERROR_FLASH_MS   = 650;  // matches the CSS flash-error animation duration
 let nextPenaltySecs    = 2;    // penalty duration for next invalid submission; escalates each mistake
 let penaltyTimerHandle = null; // setInterval handle for the penalty countdown display
@@ -253,14 +254,14 @@ function renderBoard(boardIndices) {
     const el   = createCardEl(card);
 
     if (!cardRotations.has(canonicalIdx)) {
-      cardRotations.set(canonicalIdx, `${(Math.random() * 6 - 3).toFixed(1)}deg`);
+      cardRotations.set(canonicalIdx, randomRotation());
     }
     el.style.setProperty('--card-rotate', cardRotations.get(canonicalIdx));
 
     // Animate only cards that weren't on the board in the previous render
     if (!prevBoardSet.has(canonicalIdx)) {
       dealInCard(el, dealStaggerMs);
-      dealStaggerMs += 60;
+      dealStaggerMs += DEAL_STAGGER_MS;
     }
 
     el.addEventListener('pointerdown', e => {
