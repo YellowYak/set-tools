@@ -2,69 +2,81 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Running the Project
+## Project Overview
 
-The game uses ES6 modules and must be served over HTTP (not opened as a `file://` URL):
+Browser-based implementation of the card game "Set" — pure vanilla HTML/CSS/ES6 modules, zero dependencies, no build step. Firebase provides multiplayer (Realtime Database), auth (Google OAuth + email/password), and game history (Firestore Lite).
+
+Live: https://set-card-game-ddd65.web.app/
+
+## Running Locally
 
 ```bash
 python -m http.server
-# then open http://localhost:8000
+# Open http://localhost:8000
 ```
 
-Any static file server works (VS Code Live Server, `npx serve`, etc.). There is no build step, no npm, and no dependencies.
+Any static HTTP server works (`npx serve`, VS Code Live Server, etc.). The `file://` protocol does **not** work due to ES6 module CORS restrictions.
+
+## Deployment
+
+```bash
+firebase deploy
+```
 
 ## Architecture
 
-This is a vanilla JS single-page app split across three HTML pages, each loading one JS entry point as a `type="module"` script. There is no bundler, framework, or test suite.
+### Pages → JS Modules
 
-**Module dependency graph:**
-```
-play.js  ──┐
-solve.js ──┼──► deck.js           (card data model: createDeck, shuffle)
-           ├──► set-logic.js      (isSet, findAllSets, hasSet)
-           └──► card-render.js    (createCardEl — pure DOM, no events)
+| Page | Module | Purpose |
+|------|--------|---------|
+| `play.html` | `js/play.js` | Single-player and vs-Computer game loop |
+| `multi-play.html` | `js/multi-play.js` | Multiplayer board with RTDB real-time sync |
+| `lobby.html` | `js/lobby.js` | Multiplayer lobby (create/join) |
+| `solve.html` | `js/solve.js` | Interactive Set solver tool |
+| `profile.html` | `js/profile.js` | User profile management |
+| `history.html` | `js/history.js` | Game history with pagination |
 
-play.js  ──┬──► firebase-init.js  (app + auth singleton)
-auth.js  ──┤    └──► firebase-app.js / firebase-auth.js  (CDN)
-           └──► db.js             (saveGame — Firestore Lite wrapper)
-                └──► firebase-init.js
-```
+### Core Modules (no Firebase dependencies)
 
-**Card data model:** Cards are plain objects `{ color, shape, count, fill }` using the string/number values defined in `deck.js`. The full 81-card deck is the Cartesian product of 3 colors × 3 shapes × 3 counts × 3 fills.
+- **`js/deck.js`** — Card model, `createDeck()`, `shuffle()`. Cards are plain objects: `{ color, shape, count, fill }`.
+- **`js/set-logic.js`** — `isSet()`, `findAllSets()`, `hasSet()`. Pure functions; these are the game's source of truth.
+- **`js/card-render.js`** — `createCardEl()`, `renderSetList()`. Renders cards as SVG-based DOM elements.
+- **`js/utils.js`** — `showToast()`, `dealInCard()`, `escHtml()`.
 
-**SVG rendering:** Each HTML page contains an inline `<svg><defs>` block defining the three shape paths (`#oval`, `#diamond`, `#squiggle`) and three hatch fill patterns (`#hatch-red`, `#hatch-green`, `#hatch-purple`). `card-render.js` references these by ID via `<use href="#shape">`. **Any new page that renders cards must include this SVG defs block.**
+### Firebase Modules
 
-**play.js state:** `deck` (remaining cards), `board` (parallel to `#board` DOM children — indices must stay in sync), `selected` (board indices of selected cards, max 3), `busy` (blocks input during animations), and hint state (`hintStep`, `hintSetIndices`). The `board` array and `#board` DOM children are kept strictly parallel; functions like `removeCards` sort indices high-to-low before splicing to preserve lower indices.
+- **`js/firebase-init.js`** — Singleton exports: `app`, `auth`, `rtdb`. Firebase config is intentionally public (client-side app).
+- **`js/db.js`** — Firestore Lite helpers: `saveGame()`, `saveMultiplayerGame()`.
+- **`js/auth.js`** — Auth UI widget (sign-in modal, state change listeners).
+- **`js/guest-identity.js`** — Guest players use a UUID persisted in `localStorage` (`guest_{16hex}`).
 
-Stat counters reset each `startGame()`: `hintsUsed`, `mistakeCount`, `extraCardsDealt`, `playerSetTimes` (ms per player Set — computer sets are excluded). Auth state: `currentUser` (kept in sync via `onAuthStateChanged`), `pendingGameRecord` (stashed when a guest finishes a game; saved with the real `uid` injected when they sign in).
+### CSS
 
-**Animation patterns:**
-- Deal-in: add class `dealing` with `animationDelay`, remove on `animationend`
-- Fly-to-score: clone card at fixed position → double-RAF to trigger CSS transition → `setTimeout` cleanup. The double-`requestAnimationFrame` pattern is intentional — it lets the browser register the element at its start position before triggering the transition.
-- `busy = true` gates all user input during animations.
+`css/style.css` is a single monolithic stylesheet (~37KB). SVG shapes (oval, diamond, squiggle) and hatch patterns for striped fill are defined inline in HTML `<defs>` blocks.
 
-**solve.js state:** `allCards` is the canonical 81-card array in a fixed order. `boardIndices` is a `Set<number>` of indices into `allCards`. The picker always shows all 81 cards; `on-board` CSS class marks which are selected.
+## Key Patterns
 
-## Key Constraints
+**Multiplayer concurrency:** Board state is stored in RTDB as `shuffledIndices` (a permutation of 0–80 indices into the deterministic `createDeck()` output), not as card objects. All clients independently reconstruct the same deck. RTDB transactions are used for atomic Set claims.
 
-- No build tools, no npm. Do not add a package.json or bundler.
-- All styling lives in `css/style.css`. Card dimensions scale via CSS custom properties at three breakpoints.
-- Input uses `pointerdown` (not `click`) to handle both mouse and touch uniformly; `e.preventDefault()` suppresses the synthetic mouse event on touch devices.
-- `set-logic.js` has no DOM dependencies and can be tested in isolation with Node.js if needed.
-- Firebase is loaded via CDN ESM imports (`https://www.gstatic.com/firebasejs/10.14.0/...`). Use `firebase-firestore-lite.js` (not the full `firebase-firestore.js`) for all Firestore writes — the full SDK uses a persistent WebChannel whose `TYPE=terminate` teardown on auth-state changes is blocked by browser privacy extensions, breaking the client for the entire session. The Lite SDK uses plain `fetch()` and has no such issue.
-- `firebase-init.js` is the single place `initializeApp` is called. Never call it again in `auth.js`, `db.js`, or any future module — import `app`/`auth` from `firebase-init.js` instead.
+**Card DOM attributes:** Cards carry `data-*` attributes for all four Set properties. Selection state is tracked via CSS class `.selected`.
 
-## UI/Animation Guidelines
+**Animation:** Deal-in uses CSS keyframes with staggered JS timing. The fly-to-score effect clones the card element, positions it fixed, transitions it, then removes it.
 
-After completing feature implementations, always run a visual check by describing what the user should see — especially for animations, styling, and layout changes. Flag if cloned/hidden elements might cause visual glitches.
+**Input:** Pointer events (not separate mouse/touch) everywhere. Cards have `tabindex="0"` and keyboard handlers for accessibility.
 
-## Git Workflow
+**Firestore Lite vs full SDK:** The Lite SDK (REST-only) was chosen specifically to avoid WebChannel compatibility issues with privacy browser extensions.
 
-When asked to commit and push, always:
+## Firebase Services
 
-1) `git add` relevant files,
-2) Write a descriptive commit message,
-3) Push to current branch,
-4) Report the commit hash.
+| Service | Use |
+|---------|-----|
+| Authentication | Google OAuth + email/password |
+| Realtime Database | Multiplayer game state at `/games/{gameId}` |
+| Firestore Lite | Game history at `/games` collection (signed-in users only) |
 
-If a PR is requested, create it immediately after pushing.
+Security rules in `database.rules.json` use data shape validation for RTDB writes (guests are not Firebase Auth users, so per-user auth enforcement is not currently possible).
+
+## Branch Conventions
+
+- `main` — production (deployed to Firebase Hosting)
+- `develop` — active development

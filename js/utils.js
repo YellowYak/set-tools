@@ -39,6 +39,24 @@ export function dealInCard(el, delayMs) {
 }
 
 /**
+ * Returns a random CSS rotation between -2 and +2 degrees (2 decimal places).
+ * Used to give dealt cards a subtle randomised tilt.
+ * @returns {string}  e.g. "1.23deg"
+ */
+export function randomRotation() {
+  return (Math.random() * 4 - 2).toFixed(2) + 'deg';
+}
+
+/**
+ * Capitalise the first character of a string.
+ * @param {string} str
+ * @returns {string}
+ */
+export function capitalize(str) {
+  return str ? str[0].toUpperCase() + str.slice(1) : str;
+}
+
+/**
  * Escape a string for safe insertion into HTML.
  * @param {*} str
  * @returns {string}

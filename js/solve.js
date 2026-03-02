@@ -9,6 +9,7 @@
 import { createDeck, shuffle, pluralize } from './deck.js';
 import { findAllSets } from './set-logic.js';
 import { createCardEl, renderSetList } from './card-render.js';
+import { randomRotation } from './utils.js';
 
 // ── DOM References ───────────────────────────────────────────
 const solveBoardEl   = document.getElementById('solve-board');
@@ -33,6 +34,15 @@ const boardIndices = new Set();
 
 /** Standard number of cards on the board (fewer only when the deck runs short). */
 const BOARD_SIZE = 12;
+
+/** Whether the sets results panel is currently visible. */
+let setsVisible = false;
+
+/** Cached rotation per deck index so cards don't re-tilt on every board re-render. */
+const cardRotations = new Map();
+
+/** Cached findAllSets() result for the current board. Recomputed in syncBoardUI. */
+let cachedSets = [];
 
 // ── Event wiring helper ───────────────────────────────────────
 /**
@@ -82,9 +92,13 @@ function renderBoard() {
   boardEmptyMsg.classList.add('hidden');
   boardCountEl.textContent = `(${boardIndices.size} ${pluralize(boardIndices.size, 'card')})`;
 
-  for (const idx of [...boardIndices].sort((a, b) => a - b)) {
+  // Cards render in insertion order (the order the user picked them).
+  // JS Set preserves insertion order, giving a stable, predictable display.
+  for (const idx of boardIndices) {
     const card = allCards[idx];
     const el = createCardEl(card);
+    if (!cardRotations.has(idx)) cardRotations.set(idx, randomRotation());
+    el.style.setProperty('--card-rotate', cardRotations.get(idx));
     addCardListeners(el, () => toggleCardOnBoard(idx));
     solveBoardEl.appendChild(el);
   }
@@ -93,18 +107,22 @@ function renderBoard() {
 function updatePickerHighlights() {
   for (const el of cardPickerEl.children) {
     const idx = Number(el.dataset.deckIdx);
-    el.classList.toggle('on-board', boardIndices.has(idx));
-    el.setAttribute('aria-pressed', boardIndices.has(idx) ? 'true' : 'false');
+    const isOnBoard = boardIndices.has(idx);
+    el.classList.toggle('on-board', isOnBoard);
+    el.setAttribute('aria-pressed', isOnBoard ? 'true' : 'false');
   }
 }
 
 function clearBoard() {
   boardIndices.clear();
+  cardRotations.clear();
+  setsVisible = false;
   syncBoardUI();
 }
 
 function dealRandom() {
   boardIndices.clear();
+  cardRotations.clear();
   const shuffled = shuffle([...Array(allCards.length).keys()]);
   for (let i = 0; i < Math.min(BOARD_SIZE, shuffled.length); i++) {
     boardIndices.add(shuffled[i]);
@@ -113,23 +131,26 @@ function dealRandom() {
 }
 
 // ── Set finder ────────────────────────────────────────────────
-function findAndDisplaySets() {
-  const boardCards = [...boardIndices].map(i => allCards[i]);
-  const sets = findAllSets(boardCards);
+/** Renders the current sets into the results panel. Does not change setsVisible. */
+function renderSets() {
+  const sets = cachedSets; // already computed by syncBoardUI before renderSets is called
 
   setsResultList.innerHTML = '';
   resultsLabel.classList.remove('hidden');
+  btnFindSets.textContent = 'Hide Sets';
 
   if (sets.length === 0) {
+    resultsLabel.textContent = 'No Sets Found';
     const msg = document.createElement('p');
     msg.className = 'no-sets-msg';
-    msg.textContent = boardCards.length < 3
+    msg.textContent = boardIndices.size < 3
       ? 'Add at least 3 cards to the board to search for Sets.'
       : 'No Sets found in the current board.';
     setsResultList.appendChild(msg);
     return;
   }
 
+  resultsLabel.textContent = `Sets Found (${sets.length})`;
   renderSetList(sets, setsResultList);
 }
 
@@ -138,18 +159,62 @@ function clearResults() {
   setsResultList.innerHTML = '';
 }
 
+// ── URL / deep-link sync ──────────────────────────────────────
+function syncQueryString() {
+  if (boardIndices.size === 0) {
+    history.replaceState(null, '', location.pathname);
+  } else {
+    const params = new URLSearchParams({ cards: [...boardIndices].join(',') });
+    history.replaceState(null, '', `${location.pathname}?${params}`);
+  }
+}
+
+function loadFromQueryString() {
+  const cardsParam = new URLSearchParams(location.search).get('cards');
+  if (!cardsParam) return;
+
+  const indices = cardsParam.split(',')
+    .map(s => parseInt(s, 10))
+    .filter(n => Number.isInteger(n) && n >= 0 && n < allCards.length);
+
+  for (const idx of indices) boardIndices.add(idx);
+
+  if (boardIndices.size > 0) {
+    // Auto-reveal sets when arriving via a shared or bookmarked link — the page
+    // is a solver, so showing answers immediately is the expected behaviour.
+    setsVisible = true;
+  }
+}
+
 /** Sync all board-dependent UI after any change to boardIndices. */
 function syncBoardUI() {
+  cachedSets = findAllSets([...boardIndices].map(i => allCards[i]));
   renderBoard();
   updatePickerHighlights();
-  clearResults();
+  syncQueryString();
+
+  if (setsVisible) {
+    renderSets();
+  } else {
+    clearResults();
+    btnFindSets.textContent = `Reveal Sets (${cachedSets.length})`;
+  }
 }
 
 // ── Event Wiring ──────────────────────────────────────────────
 btnRandom.addEventListener('click', dealRandom);
-btnFindSets.addEventListener('click', findAndDisplaySets);
+btnFindSets.addEventListener('click', () => {
+  setsVisible = !setsVisible;
+  if (setsVisible) {
+    renderSets();
+  } else {
+    clearResults();
+    btnFindSets.textContent = `Reveal Sets (${cachedSets.length})`;
+  }
+});
 btnClearBoard.addEventListener('click', clearBoard);
 
 // ── Init ──────────────────────────────────────────────────────
 renderPicker();
-renderBoard();
+loadFromQueryString();
+syncBoardUI();

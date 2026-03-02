@@ -25,7 +25,7 @@ let currentUser   = null;
 let playerId      = null;
 let playerName    = null;
 let currentGameId = null;
-let unsubGame     = null;   // detach fn for the /games/{id} onValue listener
+let unsubscribeGame = null; // detach fn for the /games/{id} onValue listener
 let initialized   = false;  // guard against double-init from auth state changes
 
 // ─── DOM references ───────────────────────────────────────────────────────────
@@ -150,8 +150,8 @@ function handleJoinByCode() {
 
 function checkUrlJoin() {
   const params = new URLSearchParams(window.location.search);
-  const gid = params.get('game');
-  if (gid) joinGame(gid);
+  const gameId = params.get('game');
+  if (gameId) joinGame(gameId);
 }
 
 // ─── Public game list ─────────────────────────────────────────────────────────
@@ -376,13 +376,13 @@ function enterWaitingRoom(gameId) {
   linkDisplay.value = url.toString();
 
   // Listen for real-time updates on this game
-  if (unsubGame) unsubGame();
-  unsubGame = onValue(ref(rtdb, `games/${gameId}`), snap => {
+  if (unsubscribeGame) unsubscribeGame();
+  unsubscribeGame = onValue(ref(rtdb, `games/${gameId}`), snap => {
     if (!snap.exists()) return;
     const game = snap.val();
     renderWaitingRoom(game, gameId);
     if (game.status === 'playing') {
-      if (unsubGame) { unsubGame(); unsubGame = null; }
+      if (unsubscribeGame) { unsubscribeGame(); unsubscribeGame = null; }
       // Cancel the per-player onDisconnect hook before navigating so that closing
       // the lobby WebSocket during page navigation does not write connected:false.
       onDisconnect(ref(rtdb, `games/${gameId}/players/${playerId}/connected`)).cancel()
@@ -496,7 +496,7 @@ async function leaveGame(gameId) {
     console.error('leaveGame:', err);
   }
 
-  if (unsubGame) { unsubGame(); unsubGame = null; }
+  if (unsubscribeGame) { unsubscribeGame(); unsubscribeGame = null; }
   currentGameId = null;
 
   // Return to entry panel

@@ -19,7 +19,7 @@ import { createCardEl, renderSetList } from './card-render.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js';
 import { auth } from './firebase-init.js';
 import { saveGame } from './db.js';
-import { showToast, dealInCard } from './utils.js';
+import { showToast, dealInCard, randomRotation } from './utils.js';
 
 // ── DOM References ──────────────────────────────────────────
 const boardEl            = document.getElementById('board');
@@ -66,10 +66,10 @@ let computerScore     = 0;
 let computerTimerHandle = null;
 
 // Hint state
-// hintStep:       how many of the hint set's cards have been revealed (0–3)
-// hintSetIndices: the three board indices of the chosen hint set
-let hintStep       = 0;
-let hintSetIndices = null;
+// hintStep:         how many of the hint set's cards have been revealed (0–3)
+// hintBoardIndices: the three board indices of the chosen hint set
+let hintStep         = 0;
+let hintBoardIndices = null;
 
 // Timer state
 let timerStart    = 0;    // Date.now() when current game began
@@ -188,11 +188,6 @@ function startGame() {
   }
 }
 
-// ── Helpers ──────────────────────────────────────────────────
-/** Returns a random rotation between -2 and +2 degrees (2 decimal places). */
-function randomRotation() {
-  return (Math.random() * 4 - 2).toFixed(2) + 'deg';
-}
 
 // ── Dealing ─────────────────────────────────────────────────
 /**
@@ -249,6 +244,9 @@ function removeCards(indices) {
  */
 function replaceOrRemoveCards(indices) {
   if (board.length <= 12 && deck.length >= 3) {
+    // Map before sorting so each card's stagger order (0, 1, 2) is captured from
+    // its original position, then sort high-to-low by board index so splice()
+    // calls in replaceCard don't shift earlier indices.
     const sorted = [...indices].map((idx, staggerOrder) => ({ idx, staggerOrder }))
                                .sort((a, b) => b.idx - a.idx);
     for (const { idx, staggerOrder } of sorted) replaceCard(idx, staggerOrder * REPLACE_STAGGER_MS);
@@ -351,7 +349,7 @@ function handleSuccess(els, indices) {
     clearComputerTimer();
     showToast('You found a Set!', 2200);
   } else {
-    showToast('That\'s a Set!', 2200);
+    showToast("That's a Set!", 2200);
   }
 
   for (const el of els) el.classList.remove('selected');
@@ -481,15 +479,15 @@ function showHint() {
   if (busy || paused) return;
 
   if (hintStep === 0) {
-    // Choose a Set to hint at
+    // Choose a random Set to hint at, then shuffle the reveal order
     const sets = findAllSets(board);
     if (sets.length === 0) return;
-    const [a, b, c] = sets[0];
-    hintSetIndices = [board.indexOf(a), board.indexOf(b), board.indexOf(c)];
+    const set = sets[Math.floor(Math.random() * sets.length)];
+    hintBoardIndices = shuffle(set.map(card => board.indexOf(card)));
   }
 
   if (hintStep < 3) {
-    const idx = hintSetIndices[hintStep];
+    const idx = hintBoardIndices[hintStep];
     boardEl.children[idx]?.classList.add('hint');
     hintStep++;
     hintsUsed++;
@@ -506,7 +504,7 @@ function showHint() {
 /** Clear all hint highlights and reset hint state. */
 function resetHint() {
   hintStep       = 0;
-  hintSetIndices = null;
+  hintBoardIndices = null;
   for (const el of boardEl.querySelectorAll('.hint')) {
     el.classList.remove('hint');
   }
@@ -628,6 +626,12 @@ function appendSetTimesSection(container, times, label = 'Set Times') {
  */
 function buildGameRecord() {
   const durationMs = Date.now() - timerStart;
+  let outcome = null;
+  if (gameMode === MODE_VS_COMPUTER) {
+    if (score > computerScore)      outcome = 'win';
+    else if (score < computerScore) outcome = 'loss';
+    else                            outcome = 'tie';
+  }
   return {
     uid:            currentUser?.uid ?? null,
     gameMode,
@@ -635,9 +639,7 @@ function buildGameRecord() {
     durationMs,
     playerSets:     score,
     computerSets:   gameMode === MODE_VS_COMPUTER ? computerScore : null,
-    outcome:        gameMode === MODE_VS_COMPUTER
-                      ? (score > computerScore ? 'win' : score < computerScore ? 'loss' : 'tie')
-                      : null,
+    outcome,
     hintsUsed,
     mistakeCount,
     extraCardsDealt,
