@@ -41,6 +41,9 @@ let setsVisible = false;
 /** Cached rotation per deck index so cards don't re-tilt on every board re-render. */
 const cardRotations = new Map();
 
+/** Cached findAllSets() result for the current board. Recomputed in syncBoardUI. */
+let cachedSets = [];
+
 // ── Event wiring helper ───────────────────────────────────────
 /**
  * Attach pointer and keyboard activation listeners to a card element.
@@ -89,6 +92,8 @@ function renderBoard() {
   boardEmptyMsg.classList.add('hidden');
   boardCountEl.textContent = `(${boardIndices.size} ${pluralize(boardIndices.size, 'card')})`;
 
+  // Cards render in insertion order (the order the user picked them).
+  // JS Set preserves insertion order, giving a stable, predictable display.
   for (const idx of boardIndices) {
     const card = allCards[idx];
     const el = createCardEl(card);
@@ -128,8 +133,7 @@ function dealRandom() {
 // ── Set finder ────────────────────────────────────────────────
 /** Renders the current sets into the results panel. Does not change setsVisible. */
 function renderSets() {
-  const boardCards = [...boardIndices].map(i => allCards[i]);
-  const sets = findAllSets(boardCards);
+  const sets = cachedSets; // already computed by syncBoardUI before renderSets is called
 
   setsResultList.innerHTML = '';
   resultsLabel.classList.remove('hidden');
@@ -160,8 +164,7 @@ function syncQueryString() {
   if (boardIndices.size === 0) {
     history.replaceState(null, '', location.pathname);
   } else {
-    const sorted = [...boardIndices].sort((a, b) => a - b);
-    const params = new URLSearchParams({ cards: sorted.join(',') });
+    const params = new URLSearchParams({ cards: [...boardIndices].join(',') });
     history.replaceState(null, '', `${location.pathname}?${params}`);
   }
 }
@@ -177,13 +180,15 @@ function loadFromQueryString() {
   for (const idx of indices) boardIndices.add(idx);
 
   if (boardIndices.size > 0) {
+    // Auto-reveal sets when arriving via a shared or bookmarked link — the page
+    // is a solver, so showing answers immediately is the expected behaviour.
     setsVisible = true;
-    syncBoardUI();
   }
 }
 
 /** Sync all board-dependent UI after any change to boardIndices. */
 function syncBoardUI() {
+  cachedSets = findAllSets([...boardIndices].map(i => allCards[i]));
   renderBoard();
   updatePickerHighlights();
   syncQueryString();
@@ -192,8 +197,7 @@ function syncBoardUI() {
     renderSets();
   } else {
     clearResults();
-    const count = findAllSets([...boardIndices].map(i => allCards[i])).length;
-    btnFindSets.textContent = `Reveal Sets (${count})`;
+    btnFindSets.textContent = `Reveal Sets (${cachedSets.length})`;
   }
 }
 
@@ -205,8 +209,7 @@ btnFindSets.addEventListener('click', () => {
     renderSets();
   } else {
     clearResults();
-    const count = findAllSets([...boardIndices].map(i => allCards[i])).length;
-    btnFindSets.textContent = `Reveal Sets (${count})`;
+    btnFindSets.textContent = `Reveal Sets (${cachedSets.length})`;
   }
 });
 btnClearBoard.addEventListener('click', clearBoard);
@@ -214,4 +217,4 @@ btnClearBoard.addEventListener('click', clearBoard);
 // ── Init ──────────────────────────────────────────────────────
 renderPicker();
 loadFromQueryString();
-if (boardIndices.size === 0) syncBoardUI();
+syncBoardUI();

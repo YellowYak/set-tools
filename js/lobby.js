@@ -150,8 +150,8 @@ function handleJoinByCode() {
 
 function checkUrlJoin() {
   const params = new URLSearchParams(window.location.search);
-  const gid = params.get('game');
-  if (gid) joinGame(gid);
+  const gameId = params.get('game');
+  if (gameId) joinGame(gameId);
 }
 
 // ─── Public game list ─────────────────────────────────────────────────────────

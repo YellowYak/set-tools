@@ -244,6 +244,9 @@ function removeCards(indices) {
  */
 function replaceOrRemoveCards(indices) {
   if (board.length <= 12 && deck.length >= 3) {
+    // Map before sorting so each card's stagger order (0, 1, 2) is captured from
+    // its original position, then sort high-to-low by board index so splice()
+    // calls in replaceCard don't shift earlier indices.
     const sorted = [...indices].map((idx, staggerOrder) => ({ idx, staggerOrder }))
                                .sort((a, b) => b.idx - a.idx);
     for (const { idx, staggerOrder } of sorted) replaceCard(idx, staggerOrder * REPLACE_STAGGER_MS);

@@ -452,7 +452,7 @@ async function attemptClaimSet(positions) {
 
 function scheduleExtraDeal() {
   if (extraDealTimeout) return;                      // already scheduled
-  if ((gameState?.deckPointer ?? 81) >= 81) return;  // deck exhausted — nothing to deal
+  if ((gameState.deckPointer ?? 81) >= 81) return;   // deck exhausted — nothing to deal
   extraDealTimeout = setTimeout(() => {
     extraDealTimeout = null;
     showToast('No sets on the board — dealing 3 more cards…', 2800);

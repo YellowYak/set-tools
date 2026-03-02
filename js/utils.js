@@ -48,6 +48,15 @@ export function randomRotation() {
 }
 
 /**
+ * Capitalise the first character of a string.
+ * @param {string} str
+ * @returns {string}
+ */
+export function capitalize(str) {
+  return str ? str[0].toUpperCase() + str.slice(1) : str;
+}
+
+/**
  * Escape a string for safe insertion into HTML.
  * @param {*} str
  * @returns {string}

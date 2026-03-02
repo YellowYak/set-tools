@@ -10,7 +10,7 @@
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js';
 import { auth } from './firebase-init.js';
 import { getGames } from './db.js';
-import { escHtml } from './utils.js';
+import { escHtml, capitalize } from './utils.js';
 
 const PAGE_SIZE = 10;
 
@@ -355,7 +355,7 @@ function formatMode(game) {
   if (game.gameMode === 'solo') return 'Solo';
   if (game.gameMode === 'multiplayer') return `Multi (${game.playerCount ?? '?'}p)`;
   const diff = game.difficulty;
-  return diff ? `vs CPU (${diff[0].toUpperCase() + diff.slice(1)})` : 'vs CPU';
+  return diff ? `vs CPU (${capitalize(diff)})` : 'vs CPU';
 }
 
 function outcomeCell(game) {
