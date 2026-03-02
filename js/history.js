@@ -354,10 +354,8 @@ function formatDate(timestamp) {
 function formatMode(game) {
   if (game.gameMode === 'solo') return 'Solo';
   if (game.gameMode === 'multiplayer') return `Multi (${game.playerCount ?? '?'}p)`;
-  const diffLabel = game.difficulty
-    ? game.difficulty.charAt(0).toUpperCase() + game.difficulty.slice(1)
-    : '';
-  return diffLabel ? `vs CPU (${diffLabel})` : 'vs CPU';
+  const diff = game.difficulty;
+  return diff ? `vs CPU (${diff[0].toUpperCase() + diff.slice(1)})` : 'vs CPU';
 }
 
 function outcomeCell(game) {

@@ -93,8 +93,9 @@ function renderBoard() {
 function updatePickerHighlights() {
   for (const el of cardPickerEl.children) {
     const idx = Number(el.dataset.deckIdx);
-    el.classList.toggle('on-board', boardIndices.has(idx));
-    el.setAttribute('aria-pressed', boardIndices.has(idx) ? 'true' : 'false');
+    const isOnBoard = boardIndices.has(idx);
+    el.classList.toggle('on-board', isOnBoard);
+    el.setAttribute('aria-pressed', isOnBoard ? 'true' : 'false');
   }
 }
 

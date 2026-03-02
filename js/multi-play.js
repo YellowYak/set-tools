@@ -40,10 +40,12 @@ let mistakeCount      = 0;    // invalid submissions by this player this game
 let playerSetTimes    = [];   // ms elapsed for each Set this player found
 let lastSetTimestamp  = null; // Date.now() at game start or after the last set was found
 
+const ERROR_FLASH_MS   = 650;  // matches the CSS flash-error animation duration
 let nextPenaltySecs    = 2;    // penalty duration for next invalid submission; escalates each mistake
 let penaltyTimerHandle = null; // setInterval handle for the penalty countdown display
 
 let prevBoardSet    = new Set();  // canonical indices rendered in the previous frame
+const cardRotations = new Map();  // canonicalIdx → '--card-rotate' value (assigned once, reused on re-renders)
 let prevScores      = null;       // null = not yet initialized; populated on first state update
 let prevConnected   = null;       // null = not yet initialized; { [playerId]: boolean }
 let timerInterval   = null;
@@ -250,7 +252,10 @@ function renderBoard(boardIndices) {
     const card = CANONICAL_DECK[canonicalIdx];
     const el   = createCardEl(card);
 
-    el.style.setProperty('--card-rotate', `${(Math.random() * 6 - 3).toFixed(1)}deg`);
+    if (!cardRotations.has(canonicalIdx)) {
+      cardRotations.set(canonicalIdx, `${(Math.random() * 6 - 3).toFixed(1)}deg`);
+    }
+    el.style.setProperty('--card-rotate', cardRotations.get(canonicalIdx));
 
     // Animate only cards that weren't on the board in the previous render
     if (!prevBoardSet.has(canonicalIdx)) {
@@ -280,13 +285,12 @@ function renderBoard(boardIndices) {
 
 function updateStatusBar() {
   if (!gameState) return;
-  const state       = gameState;
-  const board       = state.board ?? [];
-  const deckPointer = state.deckPointer ?? 81;
+  const board       = gameState.board ?? [];
+  const deckPointer = gameState.deckPointer ?? 81;
   const remaining   = 81 - deckPointer;
 
-  if (state.status === 'playing') {
-    const elapsed    = state.startedAt ? Math.floor((Date.now() - state.startedAt) / 1000) : 0;
+  if (gameState.status === 'playing') {
+    const elapsed    = gameState.startedAt ? Math.floor((Date.now() - gameState.startedAt) / 1000) : 0;
     const mins       = Math.floor(elapsed / 60);
     const secs       = elapsed % 60;
     const timerPart  = `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -296,7 +300,7 @@ function updateStatusBar() {
       ? `${remaining} ${pluralize(remaining, 'card')} in deck`
       : 'Deck empty';
     statusEl.textContent = `${timerPart} · ${deckPart} · ${setCount} ${pluralize(setCount, 'set')} on board`;
-  } else if (state.status === 'finished') {
+  } else if (gameState.status === 'finished') {
     statusEl.textContent = 'Game over';
   }
 }
@@ -402,14 +406,6 @@ async function attemptClaimSet(positions) {
         }
       }
 
-      // If no set remains and deck has cards, deal 3 more
-      if (!hasSet(newBoard.map(i => CANONICAL_DECK[i])) && ptr < 81) {
-        const toAdd = Math.min(3, 81 - ptr);
-        for (let i = 0; i < toAdd; i++) {
-          newBoard.push(currentData.shuffledIndices[ptr++]);
-        }
-      }
-
       currentData.board       = newBoard;
       currentData.deckPointer = ptr;
 
@@ -456,9 +452,9 @@ async function attemptClaimSet(positions) {
 function scheduleExtraDeal() {
   if (extraDealTimeout) return;                      // already scheduled
   if ((gameState?.deckPointer ?? 81) >= 81) return;  // deck exhausted — nothing to deal
-  showToast('No sets on the board — dealing 3 more cards…', 2800);
   extraDealTimeout = setTimeout(() => {
     extraDealTimeout = null;
+    showToast('No sets on the board — dealing 3 more cards…', 2800);
     ensureSetOnBoard();
   }, 3000);
 }
@@ -515,7 +511,7 @@ function applyPenalty(positions) {
   positions.forEach(pos => cardEls[pos]?.classList.add('flash-error'));
   setTimeout(() => {
     positions.forEach(pos => cardEls[pos]?.classList.remove('flash-error'));
-  }, 650);
+  }, ERROR_FLASH_MS);
 
   // 2. Toast message
   showToast(`Not a set: ${penaltySeconds}-second penalty.`, 2800);

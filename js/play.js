@@ -351,7 +351,7 @@ function handleSuccess(els, indices) {
     clearComputerTimer();
     showToast('You found a Set!', 2200);
   } else {
-    showToast('That\'s a Set!', 2200);
+    showToast("That's a Set!", 2200);
   }
 
   for (const el of els) el.classList.remove('selected');
