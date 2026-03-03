@@ -372,6 +372,7 @@ async function attemptClaimSet(positions) {
   }
 
   try {
+    const setStartTime = lastSetTimestamp; // capture before onValue listener resets it
     const result = await runTransaction(ref(rtdb, `games/${gameId}`), currentData => {
       if (!currentData || currentData.status !== 'playing') return; // abort
 
@@ -432,8 +433,8 @@ async function attemptClaimSet(positions) {
     });
 
     if (result.committed) {
-      if (lastSetTimestamp !== null) {
-        playerSetTimes.push(Date.now() - lastSetTimestamp);
+      if (setStartTime !== null) {
+        playerSetTimes.push(Date.now() - setStartTime);
       }
       showToast('Set!');
     } else {
