@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "set-tools",
     "public": ".",
     "ignore": [
       "firebase.json",

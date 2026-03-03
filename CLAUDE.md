@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Browser-based implementation of the card game "Set" — pure vanilla HTML/CSS/ES6 modules, zero dependencies, no build step. Firebase provides multiplayer (Realtime Database), auth (Google OAuth + email/password), and game history (Firestore Lite).
 
-Live: https://set-card-game-ddd65.web.app/
+Live: https://set-tools.web.app/
 
 ## Running Locally
 

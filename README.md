@@ -6,7 +6,7 @@ A standalone browser implementation of the card game **Set**, built with vanilla
 
 ### Online
 
-Live demo available at https://set-card-game-ddd65.web.app/
+Live demo available at https://set-tools.web.app/
 
 ### Locally
 
@@ -132,7 +132,7 @@ Multiplayer games are hosted and synchronized via Firebase Realtime Database. An
 ├── profile.html            User profile page
 ├── history.html            Game history page
 ├── firebase.json           Firebase Hosting configuration
-├── .firebaserc             Firebase project alias (set-card-game-ddd65)
+├── .firebaserc             Firebase project alias (set-card-game-ddd65), hosting site: set-tools
 ├── .gitignore              Ignores local Firebase cache (.firebase/)
 ├── css/
 │   └── style.css           All styles — layout, card states, animations, lobby/multiplayer UI
