@@ -39,6 +39,7 @@ let gameSaved    = false;  // guard against saving the same game twice
 let mistakeCount      = 0;    // invalid submissions by this player this game
 let playerSetTimes    = [];   // ms elapsed for each Set this player found
 let lastSetTimestamp  = null; // Date.now() at game start or after the last set was found
+let timerStartedAt    = null; // local epoch for the display timer (immune to inter-client clock skew)
 
 const DEAL_STAGGER_MS  = 60;   // delay between successive cards dealing in
 const ERROR_FLASH_MS   = 650;  // matches the CSS flash-error animation duration
@@ -149,6 +150,7 @@ function handleStateUpdate(newState) {
       // set-times for late joiners who connect mid-game.
       lastSetTimestamp = Date.now();
     }
+    if (timerStartedAt === null) timerStartedAt = Date.now();
     if (!hasSet((newState.board ?? []).map(i => CANONICAL_DECK[i]))) {
       scheduleExtraDeal();
     } else {
@@ -291,7 +293,7 @@ function updateStatusBar() {
   const remaining   = 81 - deckPointer;
 
   if (gameState.status === 'playing') {
-    const elapsed    = gameState.startedAt ? Math.floor((Date.now() - gameState.startedAt) / 1000) : 0;
+    const elapsed    = timerStartedAt !== null ? Math.floor((Date.now() - timerStartedAt) / 1000) : 0;
     const mins       = Math.floor(elapsed / 60);
     const secs       = elapsed % 60;
     const timerPart  = `${mins}:${secs.toString().padStart(2, '0')}`;
