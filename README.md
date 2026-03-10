@@ -119,6 +119,10 @@ Multiplayer games are hosted and synchronized via Firebase Realtime Database. An
 - **Reveal Sets (N) / Hide Sets** — toggle button; shows all Sets as grouped mini-card triplets labelled "Sets Found (N)", updates live as cards are added or removed
 - **Clear Board** — reset to an empty board
 - **Deep linking** — the URL querystring reflects the current board state; share or bookmark any board and it will be restored automatically on arrival
+- **Scan Photo** — photograph a physical Set board and have the cards recognized automatically:
+  - A YOLOv8 OBB model (`best.onnx`, run via onnxruntime-web) detects card bounding boxes in the image
+  - A MobileNetV2 multi-head classifier (TF.js GraphModel) identifies each card's color, shape, fill, and count from the cropped card image
+  - A preview modal shows the annotated image with detected cards and thumbnail previews of each recognized card; confirm to add them all to the board at once
 
 ## Project Structure
 
@@ -150,7 +154,12 @@ Multiplayer games are hosted and synchronized via Firebase Realtime Database. An
 │   ├── history.js          History page — loads, filters, sorts, and paginates game records
 │   ├── firebase-init.js    Firebase app singleton — exports app, auth, and rtdb
 │   ├── db.js               Firestore helpers — saveGame(), saveMultiplayerGame(), getGames()
+│   ├── image-recognize.js  ML card recognition — YOLO card detection + MobileNetV2 classifier
 │   └── utils.js            Shared UI helpers — showToast(), escHtml(), dealInCard(), randomRotation()
+├── models/
+│   ├── best.onnx           YOLOv8 OBB model for card bounding-box detection
+│   ├── model.json          MobileNetV2 TF.js GraphModel manifest
+│   └── group1-shard*.bin   MobileNetV2 weight shards
 ```
 
 ## Technical Notes
@@ -158,6 +167,7 @@ Multiplayer games are hosted and synchronized via Firebase Realtime Database. An
 - **Firebase Authentication + Firestore Lite + Realtime Database** — all loaded via the official Firebase CDN ESM; no bundler needed. Firestore uses the Lite SDK (`firebase-firestore-lite`) which issues plain REST requests rather than a WebChannel, avoiding compatibility issues with browser privacy extensions. The Realtime Database (RTDB) uses WebSockets for push-based sync in multiplayer games; it is a separate Firebase product exported as `rtdb` from `firebase-init.js`
 - **Multiplayer concurrency** — all Set claims go through an RTDB `runTransaction` on the entire game node; the first valid commit wins atomically and all others abort safely. Board state is never stored as card objects — only a server-stored `shuffledIndices` permutation (0–80) plus per-client `createDeck()` (deterministic) keep every client in sync without redundant data
 - **Guest identity** — players who aren't signed in receive a persistent `localStorage` UUID (`guest_{16hex}`) and are prompted once to choose a display name; identity survives page refreshes and navigation within the same browser
+- **ML card recognition (solve page)** — the Scan Photo feature loads two models lazily in the browser: a YOLOv8 OBB detector (`best.onnx`) run via [onnxruntime-web](https://onnxruntime.ai/) to locate card bounding boxes (image letterboxed to 640×640), and a MobileNetV2 multi-head TF.js GraphModel that classifies each cropped card into its four features. Both libraries are loaded from CDN only when the user first opens the scan modal; no server-side processing is involved
 - **No other dependencies** — vanilla ES6 modules (`type="module"`), no npm, no build step
 - **SVG card rendering** — shapes (`#oval`, `#diamond`, `#squiggle`) and hatch fill patterns (`#hatch-red`, `#hatch-green`, `#hatch-purple`) are defined once per page in an inline `<svg><defs>` block; cards reference them with `<use href="#shape">`
 - **Card DOM structure** — each card is a `<div class="card">` with `data-color`, `data-shape`, `data-count`, `data-fill` attributes and an `aria-label` (e.g. `"2 red striped ovals"`)

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Browser-based implementation of the card game "Set" — pure vanilla HTML/CSS/ES6 modules, zero dependencies, no build step. Firebase provides multiplayer (Realtime Database), auth (Google OAuth + email/password), and game history (Firestore Lite).
+Browser-based implementation of the card game "Set" — pure vanilla HTML/CSS/ES6 modules, no build step. Firebase provides multiplayer (Realtime Database), auth (Google OAuth + email/password), and game history (Firestore Lite). The solve page's photo-scan feature loads onnxruntime-web and TF.js from CDN (lazily, on first use).
 
 Live: https://set-tools.web.app/
 
@@ -42,6 +42,7 @@ firebase deploy
 - **`js/set-logic.js`** — `isSet()`, `findAllSets()`, `hasSet()`. Pure functions; these are the game's source of truth.
 - **`js/card-render.js`** — `createCardEl()`, `renderSetList()`. Renders cards as SVG-based DOM elements.
 - **`js/utils.js`** — `showToast()`, `dealInCard()`, `escHtml()`.
+- **`js/image-recognize.js`** — Photo-scan pipeline: YOLOv8 OBB card detection (`models/best.onnx` via onnxruntime-web) + MobileNetV2 multi-head classifier (`models/model.json` via TF.js) that returns color/shape/fill/count for each detected card.
 
 ### Firebase Modules
 
