@@ -10,17 +10,27 @@ import { createDeck, shuffle, pluralize } from './deck.js';
 import { findAllSets } from './set-logic.js';
 import { createCardEl, renderSetList } from './card-render.js';
 import { randomRotation } from './utils.js';
+import { recognizeCards } from './image-recognize.js';
 
 // ── DOM References ───────────────────────────────────────────
-const solveBoardEl   = document.getElementById('solve-board');
-const boardCountEl   = document.getElementById('board-count');
-const boardEmptyMsg  = document.getElementById('board-empty-msg');
-const cardPickerEl   = document.getElementById('card-picker');
-const btnRandom      = document.getElementById('btn-random');
-const btnFindSets    = document.getElementById('btn-find-sets');
-const btnClearBoard  = document.getElementById('btn-clear-board');
-const resultsLabel   = document.getElementById('results-label');
-const setsResultList = document.getElementById('sets-result-list');
+const solveBoardEl      = document.getElementById('solve-board');
+const boardCountEl      = document.getElementById('board-count');
+const boardEmptyMsg     = document.getElementById('board-empty-msg');
+const cardPickerEl      = document.getElementById('card-picker');
+const btnRandom         = document.getElementById('btn-random');
+const btnFindSets       = document.getElementById('btn-find-sets');
+const btnClearBoard     = document.getElementById('btn-clear-board');
+const resultsLabel      = document.getElementById('results-label');
+const setsResultList    = document.getElementById('sets-result-list');
+// Scan-photo UI
+const btnScanPhoto      = document.getElementById('btn-scan-photo');
+const scanFileInput     = document.getElementById('scan-file-input');
+const scanModalOverlay  = document.getElementById('scan-modal-overlay');
+const scanStatus        = document.getElementById('scan-status');
+const scanPreviewCanvas = document.getElementById('scan-preview-canvas');
+const scanCardPreview   = document.getElementById('scan-card-preview');
+const btnScanConfirm    = document.getElementById('btn-scan-confirm');
+const btnScanCancel     = document.getElementById('btn-scan-cancel');
 
 // ── State ────────────────────────────────────────────────────
 /** All 81 cards in a stable canonical order */
@@ -43,6 +53,9 @@ const cardRotations = new Map();
 
 /** Cached findAllSets() result for the current board. Recomputed in syncBoardUI. */
 let cachedSets = [];
+
+/** Deck indices from the most recent scan, waiting for user confirmation. */
+let pendingScanIndices = [];
 
 // ── Event wiring helper ───────────────────────────────────────
 /**
@@ -201,6 +214,64 @@ function syncBoardUI() {
   }
 }
 
+// ── Scan flow ─────────────────────────────────────────────────
+function closeScanModal() {
+  scanModalOverlay.classList.add('hidden');
+  pendingScanIndices = [];
+}
+
+async function startScan(file) {
+  // Reset modal to loading state
+  pendingScanIndices = [];
+  scanStatus.textContent = '';
+  scanCardPreview.innerHTML = '';
+  btnScanConfirm.disabled = true;
+  // Clear any previous preview image
+  scanPreviewCanvas.removeAttribute('width');
+  scanPreviewCanvas.removeAttribute('height');
+
+  scanModalOverlay.classList.remove('hidden');
+
+  try {
+    const { deckIndices, previewCanvas } = await recognizeCards(
+      file,
+      allCards,
+      msg => { scanStatus.textContent = msg; }
+    );
+
+    // Render annotated preview image
+    scanPreviewCanvas.width  = previewCanvas.width;
+    scanPreviewCanvas.height = previewCanvas.height;
+    scanPreviewCanvas.getContext('2d').drawImage(previewCanvas, 0, 0);
+
+    // Deduplicate and filter out unrecognized cards (-1)
+    const validIndices = [...new Set(deckIndices.filter(i => i >= 0))];
+    pendingScanIndices = validIndices;
+
+    // Show recognized cards as small card elements
+    scanCardPreview.innerHTML = '';
+    for (const idx of validIndices) {
+      const el = createCardEl(allCards[idx]);
+      el.setAttribute('role', 'listitem');
+      scanCardPreview.appendChild(el);
+    }
+
+    const rejected = deckIndices.length - validIndices.length;
+    const countStr = `${validIndices.length} card${validIndices.length !== 1 ? 's' : ''} found`;
+    const rejectStr = rejected > 0 ? ` (${rejected} skipped — unrecognized or duplicate)` : '';
+    scanStatus.textContent = validIndices.length === 0
+      ? 'No cards detected. Try a clearer photo.'
+      : countStr + rejectStr + '.';
+
+    btnScanConfirm.disabled = validIndices.length === 0;
+
+  } catch (err) {
+    console.error('[solve] Scan failed:', err);
+    scanStatus.textContent = `Error: ${err.message}`;
+    btnScanConfirm.disabled = true;
+  }
+}
+
 // ── Event Wiring ──────────────────────────────────────────────
 btnRandom.addEventListener('click', dealRandom);
 btnFindSets.addEventListener('click', () => {
@@ -213,6 +284,31 @@ btnFindSets.addEventListener('click', () => {
   }
 });
 btnClearBoard.addEventListener('click', clearBoard);
+
+// Scan photo wiring
+btnScanPhoto.addEventListener('click', () => scanFileInput.click());
+
+scanFileInput.addEventListener('change', () => {
+  const file = scanFileInput.files[0];
+  if (!file) return;
+  scanFileInput.value = ''; // reset so re-selecting the same file triggers change again
+  startScan(file);
+});
+
+btnScanConfirm.addEventListener('click', () => {
+  boardIndices.clear();
+  cardRotations.clear();
+  setsVisible = false;
+  for (const idx of pendingScanIndices) boardIndices.add(idx);
+  closeScanModal();
+  syncBoardUI();
+});
+
+btnScanCancel.addEventListener('click', closeScanModal);
+
+scanModalOverlay.addEventListener('pointerdown', e => {
+  if (e.target === scanModalOverlay) closeScanModal();
+});
 
 // ── Init ──────────────────────────────────────────────────────
 renderPicker();

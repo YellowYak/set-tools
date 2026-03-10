@@ -56,6 +56,8 @@
           <button class="btn btn-primary" id="btn-random">Deal 12 Random</button>
           <button class="btn btn-secondary" id="btn-find-sets">Find All Sets</button>
           <button class="btn btn-secondary" id="btn-clear-board">Clear Board</button>
+          <button class="btn btn-secondary" id="btn-scan-photo">Scan Photo</button>
+          <input type="file" id="scan-file-input" accept="image/*" capture="environment" hidden>
         </div>
 
         <div id="solve-board" class="solve-board" role="region" aria-label="Solver board">
@@ -80,6 +82,20 @@
   </div>
 
 </main>
+
+<!-- ── Scan Preview Modal ── -->
+<div class="modal-overlay hidden" id="scan-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="scan-modal-title">
+  <div class="modal scan-modal">
+    <h2 id="scan-modal-title">Scan Board</h2>
+    <div id="scan-status" class="scan-status"></div>
+    <canvas id="scan-preview-canvas" class="scan-preview-canvas" aria-hidden="true"></canvas>
+    <div id="scan-card-preview" class="scan-card-preview" role="list" aria-label="Detected cards"></div>
+    <div class="scan-modal-actions">
+      <button class="btn btn-primary" id="btn-scan-confirm" disabled>Add to Board</button>
+      <button class="btn btn-secondary" id="btn-scan-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <script type="module" src="js/solve.js"></script>
 

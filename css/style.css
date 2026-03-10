@@ -699,6 +699,68 @@ a {
 }
 
 /* ============================================================
+   Scan Preview Modal (solve page)
+   ============================================================ */
+.scan-modal {
+  max-width: 680px;
+  padding: 32px 36px 28px;
+  text-align: left;
+}
+
+.scan-status {
+  font-size: 0.875rem;
+  color: #a8c8a0;
+  margin: 12px 0;
+  min-height: 1.4em;
+  font-style: italic;
+}
+
+.scan-preview-canvas {
+  display: block;
+  max-width: 100%;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  margin: 12px 0;
+  background: rgba(0,0,0,0.2);
+}
+
+/* Hide the canvas until an image has been drawn into it */
+.scan-preview-canvas:not([width]) {
+  display: none;
+}
+
+.scan-card-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+/* Detected cards in the preview are small and non-interactive */
+.scan-card-preview .card {
+  --card-w: 72px;
+  --card-h: 104px;
+  cursor: default;
+  pointer-events: none;
+}
+
+.scan-card-preview .card:hover {
+  transform: none;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15), 0 6px 20px rgba(0,0,0,0.25);
+}
+
+.scan-card-preview .card svg {
+  height: 26px;
+}
+
+.scan-modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  justify-content: flex-end;
+}
+
+/* ============================================================
    Index / Landing Page
    ============================================================ */
 .hero {
